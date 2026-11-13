@@ -1,0 +1,31 @@
+{
+  "name": "@triage/service",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --cache --max-warnings 0",
+    "test:unit": "vitest run --project triage:unit",
+    "test:integration": "vitest run --project triage:integration",
+    "test:e2e": "vitest run --project triage:e2e"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "^1.6.4",
+    "@langchain/core": "^1.4.0",
+    "@langchain/langgraph": "^1.7.4",
+    "@langchain/ollama": "*",
+    "@nestjs/common": "^12.5.0",
+    "@nestjs/core": "^12.5.0",
+    "@nestjs/platform-express": "^12.5.0",
+    "@triage/contracts": "*",
+    "@triage/kernel": "*",
+    "@triage/service-kit": "*",
+    "pino": "^10.4.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": { "@triage/tooling": "*" }
+}

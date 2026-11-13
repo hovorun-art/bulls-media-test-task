@@ -16,15 +16,15 @@ Owns: package.json, package-lock.json, turbo.json, tsconfig.json, .nvmrc, .env.e
 
 Owns: apps/triage/package.json, apps/triage/tsconfig.json, apps/triage/eslint.config.js, apps/triage/vitest.config.ts, apps/triage/data/**, apps/triage/migrations/**, apps/triage/src/domain/{knowledge-base,orders,refunds,guard,runs}/**, apps/triage/src/infra/{knowledge-base,orders,refunds,guard,runs}/** · Depends on: 1 · Done when: npm run check
 
-- [ ] 2.1 Mock data: knowledge-base articles (`apps/triage/data/kb/*.md`) and the order seed (`apps/triage/data/orders.json`)
-- [ ] 2.2 Test "Knowledge base search returns matching articles" (markdown-knowledge-base.test.ts)
-- [ ] 2.3 `KnowledgeBase` port and `MarkdownKnowledgeBase` (keyword search, known ids)
-- [ ] 2.4 Test "Order of another customer is not found" (seeded-order-store.test.ts)
-- [ ] 2.5 `OrderStore` port and `SeededOrderStore` (ownership by email, dates relative to the clock)
-- [ ] 2.6 Test "Refund of an undelivered order is not eligible" (refund-policy.impl.test.ts)
-- [ ] 2.7 `RefundPolicy` port and `RefundPolicyImpl` (delivered, window, not refunded, amount limit)
-- [ ] 2.8 `InjectionGuard` port and `PatternInjectionGuard` with its unit test (pattern-injection-guard.test.ts)
-- [ ] 2.9 `RunRepository` port, SQL migration and `SqliteRunRepository` with its integration test (sqlite-run-repository.int.test.ts)
+- [x] 2.1 Mock data: knowledge-base articles (`apps/triage/data/kb/*.md`) and the order seed (`apps/triage/data/orders.json`)
+- [x] 2.2 Test "Knowledge base search returns matching articles" (markdown-knowledge-base.test.ts)
+- [x] 2.3 `KnowledgeBase` port and `MarkdownKnowledgeBase` (keyword search, known ids)
+- [x] 2.4 Test "Order of another customer is not found" (seeded-order-store.test.ts)
+- [x] 2.5 `OrderStore` port and `SeededOrderStore` (ownership by email, dates relative to the clock)
+- [x] 2.6 Test "Refund of an undelivered order is not eligible" (refund-policy.impl.test.ts)
+- [x] 2.7 `RefundPolicy` port and `RefundPolicyImpl` (delivered, window, not refunded, amount limit)
+- [x] 2.8 `InjectionGuard` port and `PatternInjectionGuard` with its unit test (pattern-injection-guard.test.ts)
+- [x] 2.9 `RunRepository` port, SQL migration and `SqliteRunRepository` with its integration test (sqlite-run-repository.int.test.ts)
 
 ## 3. Agent graph and model adapter
 

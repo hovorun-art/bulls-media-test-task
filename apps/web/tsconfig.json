@@ -1,0 +1,9 @@
+{
+  "extends": "@triage/tooling/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client", "@testing-library/jest-dom/vitest"]
+  },
+  "include": ["src", "e2e", "*.config.ts"]
+}

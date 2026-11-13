@@ -1,0 +1,58 @@
+{
+  "app": {
+    "title": "Support triage agent",
+    "subtitle": "Paste a customer ticket: the agent classifies it, looks things up, decides and drafts a reply for you to review."
+  },
+  "form": {
+    "title": "New ticket",
+    "sample": "Sample ticket",
+    "samplePlaceholder": "Pick a sample…",
+    "email": "Customer email",
+    "subject": "Subject",
+    "body": "Message",
+    "orderId": "Order id (optional)",
+    "submit": "Triage ticket",
+    "pending": "Triaging… a local model can take a minute or two"
+  },
+  "result": {
+    "title": "Decision",
+    "empty": "Submit a ticket or open a past run to see the agent's decision.",
+    "category": "Category",
+    "priority": "Priority",
+    "action": "Action",
+    "summary": "Summary",
+    "replyDraft": "Reply draft",
+    "noDraft": "No draft: a human writes this reply.",
+    "reasons": "Reasons",
+    "citedArticles": "Cited articles",
+    "none": "none",
+    "refund": "Proposed refund: {{amount}} {{currency}} for order {{orderId}} (needs approval)",
+    "model": "Model: {{provider}} / {{name}}",
+    "flags": {
+      "injectionSuspected": "Possible prompt injection",
+      "toolLimitReached": "Tool call limit reached",
+      "policyOverride": "Policy overrode the model",
+      "modelFailure": "Model failure"
+    },
+    "actions": {
+      "reply": "Reply",
+      "propose_refund": "Propose refund",
+      "escalate": "Escalate to a human",
+      "refuse": "Refuse"
+    }
+  },
+  "trace": {
+    "title": "Trace",
+    "duration": "{{ms}} ms",
+    "input": "Input",
+    "output": "Output",
+    "error": "Error"
+  },
+  "history": {
+    "title": "Past runs",
+    "empty": "No runs yet."
+  },
+  "errors": {
+    "generic": "Something went wrong: {{message}}"
+  }
+}

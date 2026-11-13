@@ -39,6 +39,7 @@ Owns: apps/triage/src/domain/triage/**, apps/triage/src/infra/triage/** · Depen
 - [x] 3.7 Test "Invalid model output is repaired" (langchain-support-model.test.ts)
 - [x] 3.8 `LangChainSupportModel` over any LangChain chat model: structured output with repair attempts, tool binding, configured retries; chat model factory for Ollama (default) and Anthropic
 - [x] 3.9 Test "Model call is retried after a transient failure" against a local HTTP stub (langchain-support-model.int.test.ts)
+- [x] 3.10 Test "Repeated tool call ends research" (langgraph-triage-agent.test.ts) and the repeat guard in `LangGraphTriageAgent`
 
 ## 4. HTTP API
 
@@ -57,13 +58,13 @@ Owns: apps/triage/src/app/**, apps/triage/src/main.ts, apps/triage/test/** · De
 
 Owns: apps/web/**, samples/**, README.md, docs/** · Depends on: 4 · Done when: npm run check && npm run test:e2e -- --filter=@triage/web
 
-- [ ] 5.1 Vite + React app shell, i18next with `locales/en.json`, TanStack Query, API client typed by contracts, dev proxy to the service
-- [ ] 5.2 Sample tickets with expected outcomes (`samples/tickets.json`)
-- [ ] 5.3 Test "Picking a sample fills the form" and "Validation errors are shown" (ticket-form.test.tsx)
-- [ ] 5.4 `TicketForm` with the sample picker
-- [ ] 5.5 Test "Result shows the decision" and "Escalation without a draft" (triage-result.test.tsx)
-- [ ] 5.6 `TriageResult` view
-- [ ] 5.7 Test "Trace step expands to its data" (trace-timeline.test.tsx) and `TraceTimeline`
-- [ ] 5.8 Test "Opening a past run" (run-history.test.tsx) and `RunHistory`
-- [ ] 5.9 Playwright e2e of the submit flow with the API mocked at the network (apps/web/e2e/triage.spec.ts)
-- [ ] 5.10 README with every section the task asks for, example outputs from a live run, screenshots in `docs/`
+- [x] 5.1 Vite + React app shell, i18next with `locales/en.json`, TanStack Query, API client typed by contracts, dev proxy to the service
+- [x] 5.2 Sample tickets with expected outcomes (`samples/tickets.json`)
+- [x] 5.3 Test "Picking a sample fills the form" and "Validation errors are shown" (ticket-form.test.tsx)
+- [x] 5.4 `TicketForm` with the sample picker
+- [x] 5.5 Test "Result shows the decision" and "Escalation without a draft" (triage-result.test.tsx)
+- [x] 5.6 `TriageResult` view
+- [x] 5.7 Test "Trace step expands to its data" (trace-timeline.test.tsx) and `TraceTimeline`
+- [x] 5.8 Test "Opening a past run" (app.test.tsx), `RunHistory` (run-history.test.tsx) and the `App` layout
+- [x] 5.9 Playwright e2e of the submit flow with the API mocked at the network (apps/web/e2e/triage.spec.ts)
+- [x] 5.10 README with every section the task asks for, example outputs from a live run, screenshots in `docs/`

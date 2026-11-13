@@ -15,7 +15,8 @@
     "dev": "turbo run dev",
     "check": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run typecheck lint test:unit",
     "check:full": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run typecheck lint test:unit test:integration",
-    "test:e2e": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run test:e2e test:e2e:ui --concurrency=1"
+    "test:e2e": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run test:e2e test:e2e:ui --concurrency=1",
+    "samples": "node samples/run-samples.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -31,6 +32,7 @@
     "vitest-mock-extended": "^6.0.1"
   },
   "allowScripts": {
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

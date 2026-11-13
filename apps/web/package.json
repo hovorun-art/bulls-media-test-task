@@ -1,0 +1,36 @@
+{
+  "name": "@triage/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --cache --max-warnings 0",
+    "test:unit": "vitest run --project web:unit",
+    "test:e2e:ui": "playwright test"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.107.1",
+    "@triage/contracts": "*",
+    "i18next": "^27.1.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^18.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@testing-library/jest-dom": "*",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.10",
+    "@triage/tooling": "*",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "@vitejs/plugin-react": "^6.3.0",
+    "eslint-plugin-react-hooks": "*",
+    "jsdom": "^31.0.1",
+    "msw": "^3.0.5",
+    "vite": "^8.3.8"
+  }
+}

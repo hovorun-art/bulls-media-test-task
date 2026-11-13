@@ -67,7 +67,7 @@ contracts, and only `*.module.ts` files import `infra/` to wire it. ESLint
 - Time, randomness and sleeping come in through injected ports (`Clock`, `Random`, `Sleeper` from
   `packages/kernel`), so the logic tests deterministically.
 - Health checks report only their own process, never related services.
-- Structured JSON logging through a logger port (<!-- TODO: the logger library -->).
+- Structured JSON logging through a logger port (pino, `PinoLogger` in service-kit).
 
 ## Validation and contracts
 

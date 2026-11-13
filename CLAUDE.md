@@ -1,9 +1,12 @@
 # Project
 
-<!-- TODO: what the project is, the task spec (docs/), the source of truth for external interfaces. -->
+An AI agent that triages e-commerce support tickets (the test task in `docs/`). External interfaces:
+the Zod schemas in `packages/contracts`; product overview in `README.md`.
 Spec-driven with OpenSpec and a local flow in `.claude/` (skills, agents, hooks).
 
-<!-- TODO: the stack (language, frameworks, libraries) and the infrastructure, once decided in a change. -->
+Stack: TypeScript, npm workspaces + Turborepo; NestJS, LangGraph.js + LangChain (Ollama by default,
+Anthropic optional), SQLite (`node:sqlite`), pino, Zod; React + Vite, TanStack Query, i18next; Vitest,
+Testing Library, MSW, Playwright. No Docker: the model runs in a local Ollama.
 
 ## Layout and rules
 
@@ -19,7 +22,10 @@ tests/support        test-only helpers for integration and e2e tests
 tests/system-e2e     Playwright suite against the whole system running together
 tooling/             shared tsconfig, ESLint (layer and class rules) and Vitest presets
 ```
-<!-- TODO: each service: what it owns, its routes, its storage. Data ownership between services. -->
+One service, `apps/triage`: owns the triage runs and their traces (SQLite file, `DATABASE_PATH`);
+routes `POST /api/triage`, `GET /api/runs`, `GET /api/runs/:id`, `GET /api/health`. The order store
+and the knowledge base are mock data in `apps/triage/data/`. `tests/support` and `tests/system-e2e`
+do not exist yet: a system e2e would need a live model.
 
 OOP with DDD and onion layers for the backends, functional React for the web app. The detailed
 rules live in `.claude/rules/` and load by themselves when you read a file they cover. Read the one

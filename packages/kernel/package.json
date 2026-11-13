@@ -1,0 +1,17 @@
+{
+  "name": "@triage/kernel",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./errors": "./src/errors/domain-error.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --cache --max-warnings 0",
+    "test:unit": "vitest run --project kernel:unit --passWithNoTests"
+  },
+  "devDependencies": {
+    "@triage/tooling": "*"
+  }
+}

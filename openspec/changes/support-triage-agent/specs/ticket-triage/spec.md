@@ -36,11 +36,15 @@ The agent SHALL run the steps input guard, classify, research with tools, decide
 - **THEN** the trace lists guard, classify, research, decide, policy, draft and validate in this order
 
 ### Requirement: The agent gathers facts with tools
-The agent SHALL be able to search the knowledge base, look up an order and check refund eligibility, and SHALL stop researching once the configured number of tool calls is reached.
+The agent SHALL be able to search the knowledge base, look up an order and check refund eligibility, and SHALL stop researching once the configured number of tool calls is reached or when the model repeats a call it already made.
 
 #### Scenario: Knowledge base search returns matching articles
 - **WHEN** the agent searches the knowledge base for "refund window"
 - **THEN** the refund policy article is among the results
+
+#### Scenario: Repeated tool call ends research
+- **WHEN** the model asks for a tool call with the same arguments as an earlier one
+- **THEN** the call is not run again and the agent moves on to deciding
 
 #### Scenario: Tool call limit stops research and escalates
 - **WHEN** the model keeps asking for tools beyond the configured limit

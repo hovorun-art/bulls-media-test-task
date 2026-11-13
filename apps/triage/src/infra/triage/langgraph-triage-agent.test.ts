@@ -216,6 +216,28 @@ describe('LangGraphTriageAgent', () => {
     });
   });
 
+  it('Repeated tool call ends research', async () => {
+    const { agent, model, orders, refundPolicy, knowledgeBase } = anAgent();
+    model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request' }));
+    model.nextStep.mockResolvedValueOnce({
+      step: { kind: 'tool', tool: 'check_refund_eligibility', args: { orderId: 'A-1002' } },
+    });
+    orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
+    refundPolicy.check.mockReturnValueOnce(anEligibility());
+    model.nextStep.mockResolvedValueOnce({
+      step: { kind: 'tool', tool: 'check_refund_eligibility', args: { orderId: 'A-1002' } },
+    });
+    model.decide.mockResolvedValueOnce({ action: 'escalate', reasons: ['x'], citedArticles: [], refundOrderId: null });
+    model.draft.mockResolvedValueOnce({ replyDraft: 'Hello' });
+    knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
+    const { trace, result } = await agent.run({ runId: RUN_ID, ticket: aTicket() });
+
+    expect(trace.filter((entry) => entry.step === 'tool')).toHaveLength(1);
+    expect(model.decide).toHaveBeenCalledTimes(1);
+    expect(result.flags.toolLimitReached).toBe(false);
+  });
+
   it('Injected instructions are flagged and escalated', async () => {
     const { agent, model, knowledgeBase, orders } = anAgent({ injection: true });
     model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request' }));

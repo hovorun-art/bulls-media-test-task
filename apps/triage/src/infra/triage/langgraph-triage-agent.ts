@@ -145,8 +145,10 @@ export class LangGraphTriageAgent implements TriageAgent {
       () => this.d.model.nextStep({ ticket: state.ticket, classification, observations: state.observations }),
     );
     const step = output?.step;
+    // A small model may ask for the same call again instead of moving on: a repeat ends research.
+    const wantsNewTool = step?.kind === 'tool' && !this.alreadyCalled(state.observations, step.tool, step.args);
     return {
-      pendingTool: step?.kind === 'tool' ? { tool: step.tool, args: step.args } : null,
+      pendingTool: wantsNewTool ? { tool: step.tool, args: step.args } : null,
       failure: error,
       trace: [entry],
     };
@@ -263,6 +265,11 @@ export class LangGraphTriageAgent implements TriageAgent {
       return refusal(`Refund of ${eligibility.amount} ${eligibility.currency} is above the limit for automatic proposals`);
     }
     return { ...decision, refund: { orderId: order.id, amount: eligibility.amount, currency: eligibility.currency } };
+  }
+
+  private alreadyCalled(observations: Observation[], tool: ToolName, args: Record<string, unknown>): boolean {
+    const call = JSON.stringify(args);
+    return observations.some((observation) => observation.tool === tool && JSON.stringify(observation.args) === call);
   }
 
   private escalation(reasons: string[], policyOverride: boolean): Decision {

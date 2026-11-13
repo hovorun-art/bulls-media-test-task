@@ -43,13 +43,12 @@ const layerRules = {
   plugins: { boundaries },
   settings: {
     'boundaries/elements': [
-      { type: 'domain', pattern: 'src/domain', mode: 'folder' },
-      { type: 'infra', pattern: 'src/infra', mode: 'folder' },
-      { type: 'wiring', pattern: 'src/app/**/*.module.ts', mode: 'file' },
-      { type: 'app', pattern: 'src/app', mode: 'folder' },
-      { type: 'main', pattern: 'src/main.ts', mode: 'file' },
+      { type: 'domain', pattern: 'src/domain' },
+      { type: 'infra', pattern: 'src/infra' },
+      { type: 'app', pattern: 'src/app' },
     ],
-    'import/resolver': { typescript: true, node: true },
+    'boundaries/files': [{ pattern: '**/*.module.ts', category: 'wiring' }],
+    'import/resolver': { node: { extensions: ['.ts', '.tsx', '.js'] } },
   },
   rules: {
     'boundaries/dependencies': [
@@ -59,18 +58,22 @@ const layerRules = {
         policies: [
           {
             from: { element: { type: 'domain' } },
-            disallow: { to: { element: { types: ['infra', 'app', 'wiring', 'main'] } } },
+            disallow: { to: { element: { types: ['infra', 'app'] } } },
             message: 'domain/ imports only kernel, contracts and other domain/ files.',
           },
           {
             from: { element: { type: 'infra' } },
-            disallow: { to: { element: { types: ['app', 'wiring', 'main'] } } },
+            disallow: { to: { element: { type: 'app' } } },
             message: 'infra/ never imports app/.',
           },
           {
             from: { element: { type: 'app' } },
             disallow: { to: { element: { type: 'infra' } } },
             message: 'app/ reaches infra/ only through *.module.ts wiring.',
+          },
+          {
+            from: { element: { type: 'app' }, file: { categories: 'wiring' } },
+            allow: { to: { element: { type: 'infra' } } },
           },
         ],
       },

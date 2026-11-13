@@ -44,14 +44,14 @@ Owns: apps/triage/src/domain/triage/**, apps/triage/src/infra/triage/** · Depen
 
 Owns: apps/triage/src/app/**, apps/triage/src/main.ts, apps/triage/test/** · Depends on: 3 · Done when: npm run check && npm run test:e2e -- --filter=@triage/service
 
-- [ ] 4.0 Test "Hosted provider without a key does not start" (apps/triage/src/app/config.test.ts) and the triage config schema
-- [ ] 4.1 Wiring: `AppModule`, triage and runs modules with factories for every port, config, migrations at start
-- [ ] 4.2 Shared `triage-under-test.ts` (starts the app with temp storage and a mocked `SupportModel`)
-- [ ] 4.3 Test "Ticket with a malformed email is rejected", "Ticket with an empty body is rejected" and "Ticket body over the length limit is rejected" (test/e2e/triage.e2e.test.ts)
-- [ ] 4.4 `POST /api/triage` controller with Zod validation at the edge
-- [ ] 4.5 Test "Model unavailable ends in escalation" (test/e2e/triage.e2e.test.ts)
-- [ ] 4.6 Test "Triaged ticket can be opened by its run id", "Runs are listed newest first" and "Unknown run id returns 404" (test/e2e/runs.e2e.test.ts)
-- [ ] 4.7 `GET /api/runs` and `GET /api/runs/:id` controller
+- [x] 4.0 Test "Hosted provider without a key does not start" (apps/triage/src/app/config.test.ts) and the triage config schema
+- [x] 4.1 Wiring: `AppModule`, triage and runs modules with factories for every port, config, migrations at start
+- [x] 4.2 Shared `triage-under-test.ts` (starts the app with temp storage and a mocked `SupportModel`)
+- [x] 4.3 Test "Ticket with a malformed email is rejected", "Ticket with an empty body is rejected" and "Ticket body over the length limit is rejected" (test/e2e/triage.e2e.test.ts)
+- [x] 4.4 `POST /api/triage` controller with Zod validation at the edge
+- [x] 4.5 Test "Model unavailable ends in escalation" (test/e2e/triage.e2e.test.ts)
+- [x] 4.6 Test "Triaged ticket can be opened by its run id", "Runs are listed newest first" and "Unknown run id returns 404" (test/e2e/runs.e2e.test.ts)
+- [x] 4.7 `GET /api/runs` and `GET /api/runs/:id` controller
 
 ## 5. Web UI and documentation
 

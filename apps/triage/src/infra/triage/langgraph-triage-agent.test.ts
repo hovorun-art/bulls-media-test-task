@@ -97,7 +97,7 @@ describe('LangGraphTriageAgent', () => {
     model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
     model.decide.mockResolvedValueOnce({
       action: 'reply',
-      reasons: ['The order is shipped with DHL.'],
+      reasons: ['The order is shipped with DHL.', 'Tracking number JD1'],
       citedArticles: ['order-tracking'],
       refundOrderId: null,
     });
@@ -112,10 +112,10 @@ describe('LangGraphTriageAgent', () => {
       action: 'reply',
       replyDraft: 'Your lamp is on its way with DHL, tracking JD1.',
       citedArticles: ['order-tracking'],
-      reasons: ['The order is shipped with DHL.'],
+      reasons: ['The order is shipped with DHL.', 'Tracking number JD1'],
       refund: null,
       flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false },
-      summary: 'order_status, normal priority. Action: reply. Asks where order A-1001 is. Why: The order is shipped with DHL.',
+      summary: 'order_status, normal priority. Action: reply. Asks where order A-1001 is. Why: The order is shipped with DHL; Tracking number JD1.',
     });
   });
 

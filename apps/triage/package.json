@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
-    "start": "tsx --env-file-if-exists=../../.env src/main.ts",
+    "dev": "tsx watch --tsconfig ../../tsconfig.json --env-file-if-exists=../../.env src/main.ts",
+    "start": "tsx --tsconfig ../../tsconfig.json --env-file-if-exists=../../.env src/main.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --cache --max-warnings 0",
     "test:unit": "vitest run --project triage:unit",
@@ -27,5 +27,7 @@
     "rxjs": "^7.8.2",
     "zod": "^4.6.7"
   },
-  "devDependencies": { "@triage/tooling": "*" }
+  "devDependencies": {
+    "@triage/tooling": "*"
+  }
 }

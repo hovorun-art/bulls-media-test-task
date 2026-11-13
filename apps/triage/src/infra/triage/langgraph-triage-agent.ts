@@ -301,7 +301,7 @@ export class LangGraphTriageAgent implements TriageAgent {
       `${result.category}, ${result.priority} priority.`,
       `Action: ${action}.`,
       issueSummary,
-      `Why: ${result.reasons.join(' ')}`,
+      `Why: ${result.reasons.map((reason) => reason.trim().replace(/\.$/, '')).join('; ')}.`,
     ]
       .filter((part) => part.length > 0)
       .join(' ');

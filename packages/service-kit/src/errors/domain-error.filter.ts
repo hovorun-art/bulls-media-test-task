@@ -37,6 +37,10 @@ export class DomainErrorFilter implements ExceptionFilter {
     if (exception instanceof HttpException && exception.getStatus() === 404) {
       return { status: 404, body: { code: 'NOT_FOUND', message: exception.message, details: {} } };
     }
+    // The framework's own rejections of the request body (malformed JSON, too large) are input errors too.
+    if (exception instanceof HttpException && [400, 413].includes(exception.getStatus())) {
+      return { status: 400, body: { code: 'VALIDATION_FAILED', message: exception.message, details: {} } };
+    }
     this.logger.error({
       message: 'Unexpected error',
       context: {

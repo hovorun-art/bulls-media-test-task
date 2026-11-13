@@ -1,5 +1,5 @@
 import type { ArgumentsHost } from '@nestjs/common';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { DomainError, type Logger, ValidationFailedError } from '@triage/kernel';
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
@@ -69,9 +69,9 @@ describe('DomainErrorFilter', () => {
     const { host, sent } = aHostCapturingTheResponse();
     const filter = new DomainErrorFilter(mockDeep<Logger>());
 
-    filter.catch(new DomainError({ code, message: 'x' }), host);
+    filter.catch(new DomainError({ code, message: 'x', details: { reason: 'y' } }), host);
 
-    expect(sent.status).toBe(status);
+    expect(sent).toEqual({ status, body: { code, message: 'x', details: { reason: 'y' } } });
   });
 
   it('maps an unknown route to 404 NOT_FOUND without logging it', () => {
@@ -85,11 +85,26 @@ describe('DomainErrorFilter', () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['malformed JSON', new BadRequestException('Unexpected end of JSON input')],
+    ['a body over the size limit', new PayloadTooLargeException('request entity too large')],
+  ])('maps a framework rejection of %s to 400 VALIDATION_FAILED', (_case, exception) => {
+    const { host, sent } = aHostCapturingTheResponse();
+    const filter = new DomainErrorFilter(mockDeep<Logger>());
+
+    filter.catch(exception, host);
+
+    expect(sent).toEqual({
+      status: 400,
+      body: { code: 'VALIDATION_FAILED', message: exception.message, details: {} },
+    });
+  });
+
   it('answers another framework HTTP error with a generic 500', () => {
     const { host, sent } = aHostCapturingTheResponse();
     const filter = new DomainErrorFilter(mockDeep<Logger>());
 
-    filter.catch(new BadRequestException('Unexpected JSON'), host);
+    filter.catch(new ForbiddenException(), host);
 
     expect(sent).toEqual(GENERIC_500);
   });

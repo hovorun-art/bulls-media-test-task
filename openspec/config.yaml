@@ -1,0 +1,13 @@
+schema: spec-flow
+
+# Project facts for every artifact. The flow's own rules (brief, approval, test first, task groups)
+# live in openspec/schemas/spec-flow/schema.yaml and CLAUDE.md; keep only what is specific to this product.
+# This text is added to every `openspec instructions` answer, so keep it short: the stack, the layout
+# and the code rules are already in CLAUDE.md and .claude/rules/.
+context: |
+  TODO: a short description of the product (what it does, its key guarantees).
+
+# Per-artifact rules for this project (brief, specs, tasks), for example:
+# rules:
+#   specs:
+#     - 'Every API error scenario names the HTTP status'

@@ -1,0 +1,236 @@
+name: spec-flow
+version: 2
+description: spec-flow workflow - brief → user approval → specs → tasks
+artifacts:
+  - id: brief
+    generates: brief.md
+    description: The one page the user reads and approves - the change in a product cut and a technical cut
+    template: brief.md
+    instruction: |
+      Write the brief: the only planning document the user reads. It is the
+      summary of what you and the user agreed in the conversation, in two
+      cuts, and nothing else. Specs and tasks are written for the agents and
+      may only build on it.
+
+      Keep it to about 40 lines. One line per point, no introductions, no
+      restating of the project rules or of other files. If it does not fit,
+      the change is too big: propose splitting it.
+
+      **Product** (what and why, no implementation):
+      - **Goal**: one or two sentences.
+      - **Behaviour**: one line per thing the user will see or be able to do.
+        Each line later becomes one or more spec scenarios, so it must be
+        concrete enough to test. Unknown numbers (limits, timings, sizes) are
+        questions, not guesses.
+      - **Not doing**: what stays out, so nobody builds adjacent features.
+
+      **Technical** (how, as a difference from what the project already does):
+      - **As usual**: what follows the existing patterns, one line. Do not
+        describe layers, classes or test levels: `.claude/rules/` has them.
+      - **Reuses**: the existing modules, ports and components this builds on.
+      - **New**: every new library, module, table, endpoint or pattern, each
+        with its reason. A library is chosen by the user (see "Asking" in
+        CLAUDE.md).
+      - **Risks**: only real ones, each with how it is handled.
+      - **Capabilities**: the spec files this change creates or modifies,
+        three at most; more means the change should be split. Run
+        `openspec list --specs` and reuse an existing capability's exact path
+        instead of a near-duplicate; read a related spec in full
+        (`openspec show "<spec-id>" --type spec`) before deciding what
+        changes. Name a new capability for a durable behaviour (`user-auth`),
+        not for this work (`add-login-endpoint`), in kebab-case. A change
+        with no behaviour change (refactor, tooling) lists none and sets
+        `skip_specs: true` in its `.openspec.yaml`.
+
+      **To confirm**: everything the user has not said or confirmed yet, as
+      `- [ ] <assumption> - <why>` (a minor default you propose) or
+      `- [ ] <question>`. Never decide behaviour for the user: a point that
+      is not clearly theirs goes here, not into Product or Technical.
+
+      Resolve the list with the AskUserQuestion tool (see "Asking" in
+      CLAUDE.md): questions first, up to 4 per call, each with "Drop this
+      question" as one option; then all assumptions in one multiSelect call,
+      where the user keeps what they accept. After each call, write the
+      answer into Product or Technical and delete the item; a rejected
+      assumption becomes a question. The brief is ready when "To confirm" is
+      empty.
+
+      **Decision log** (`decisions.md` next to the brief): the history of why,
+      which the brief has no room for. Append one line each time something
+      is decided, never rewrite or delete earlier lines:
+      `- <YYYY-MM-DD> <what was decided> - why: <the reason>; instead of:
+      <the options turned down>; by: <user | user confirmed assumption |
+      agent (technical)>`.
+      Log every answer to a question, every accepted or rejected assumption,
+      every technical choice under "New" and "Risks", and later every change
+      of the brief after approval and every deviation found while
+      implementing (with what triggered it). The user does not have to read
+      it for approval; it is there so that a wrong outcome can be traced to
+      the decision behind it.
+
+      Approval: show the whole brief in chat and offer approval with
+      AskUserQuestion: a question that names the change, for example "Approve
+      the brief of `<name>`?", with the options "Approve the brief" (first;
+      this label exactly, in English even when the question is in the user's
+      language) and "Not yet". The hook records approval only from the user's
+      pick or from /specs-go <name> typed by the user.
+    requires: []
+
+  - id: approval
+    generates: .decisions-approved
+    description: The user's approval of brief.md (written by a hook, never by an agent)
+    template: approval.md
+    instruction: |
+      Do NOT create this file. It is written by the spec-flow approve hook when
+      the user approves the brief (picks "Approve the brief" or runs
+      /specs-go <name>), and only when brief.md has no unchecked
+      item left. Writing it yourself is blocked.
+
+      While it is missing: stop the planning workflow here and follow the end
+      of the brief instruction (`openspec instructions brief`): resolve
+      everything under "To confirm" with the user, then offer approval. Specs and tasks stay blocked until then, and
+      again after any later edit of brief.md.
+    requires:
+      - brief
+
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Behaviour contract for the agents and the verifier - scenarios only
+    template: spec.md
+    instruction: |
+      Write the delta specs: the behaviour contract the tests and the verifier
+      work from. The user does not read them, so write no introductions,
+      rationale or restating of the brief: requirements and scenarios only.
+
+      One file per capability the brief lists under "Capabilities", at
+      `specs/<capability-path>/spec.md`, written one at a time (say in one
+      line which one you are writing; do not rewrite a file that exists).
+      For a modified capability use the exact existing path from
+      `openspec/specs/`. No capabilities and no `skip_specs: true` means the
+      brief is wrong: go back to it.
+
+      Content: observable behaviour, inputs, outputs and error conditions.
+      No class or function names, no libraries, no implementation steps: if
+      the implementation can change without changing what is seen from
+      outside, it does not belong here.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: new behaviour
+      - **MODIFIED Requirements**: changed behaviour - MUST hold the full
+        updated requirement: copy the ENTIRE block (from `### Requirement:`
+        through all scenarios) from the main spec, with the header text
+        matching exactly, then edit it. Partial content loses detail at
+        archive. If nothing existing changes, use ADDED instead.
+      - **REMOVED Requirements**: MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: name changes only - use FROM:/TO: format
+
+      Format:
+      - `### Requirement: <name>` followed by one sentence with SHALL or
+        MUST, 500 characters at most; one behaviour per requirement.
+      - `#### Scenario: <name>` with WHEN/THEN bullets. Scenarios MUST use
+        exactly 4 hashtags; 3 hashtags or bullets fail silently. Every
+        requirement has at least one scenario.
+      - A new capability's first section is `## Purpose`: one or two
+        sentences (50+ characters). Do not add it to a delta for an existing
+        capability.
+
+      Example:
+      ```
+      # Spec Delta
+
+      ## Purpose
+
+      Lets users take their data out of the product in a portable format.
+
+      ## ADDED Requirements
+
+      ### Requirement: User can export data
+      The system SHALL allow users to export their data in CSV format.
+
+      #### Scenario: Successful export
+      - **WHEN** user clicks "Export" button
+      - **THEN** system downloads a CSV file with all user data
+      ```
+
+      spec-flow rules:
+      - Every requirement traces to a line under "Behaviour" in brief.md. If
+        something you need is not there, stop, add it to "To confirm", ask,
+        and get approval again; never fill the gap with an assumption.
+      - Do not add requirements, numeric values or outcomes the user did not
+        state. No exact tunable numbers (speeds, timings, limits, sizes): say
+        "the configured ..."; the values live in config.
+      - Every scenario has an observable THEN that a test can assert. Its
+        name is the link between the brief, the test and the task: the test
+        is named after it and tasks.md refers to it by name, so make it
+        short and unique.
+      - UI from screenshots: reference the picture ("matches the layout in
+        ui/login.png"); exact pixels and colours go to ui.md or tokens.
+    requires:
+      - approval
+
+  - id: tasks
+    generates: tasks.md
+    description: The agent's checklist - groups that are one commit each, one line per task
+    template: tasks.md
+    instruction: |
+      Write the checklist the implementing agent works from. The user does
+      not read it. It is also the progress record that survives a new
+      session, so it must be exact, and nothing else: no prose, no restating
+      of specs or of the brief.
+
+      The apply phase parses checkboxes: a tracked task is
+      `- [ ] X.Y description` under a `## N.` group heading; `- [x]` is done.
+      A line with no checkbox is not tracked.
+
+      Groups:
+      - A group is one slice of the work and one commit, small enough to
+        finish in one context: ten tasks at most. More than five groups
+        means the change should be split.
+      - Under the heading, one line: `Owns:` (the only files or folders the
+        group may create or edit; no file is owned by two groups),
+        `Depends on:` (group numbers, or none) and `Done when:` (the command
+        that proves it, usually `npm run check`). Groups that do not depend
+        on each other may run in parallel if the user chooses so.
+      - Shared foundations (contracts, interfaces, shared files such as the
+        entry point, config, locale files) go into group 1, or into a last
+        group that wires the others together.
+      - Each group lands its own tests; never collect tests into a final
+        group.
+
+      Tasks:
+      - One line each: what is done and in which file. Written for a reader
+        with no context: name the file, the class or the endpoint.
+      - Test first: `Test "<scenario name>" (<test file>)` comes before the
+        task that implements it. Refer to a scenario by its exact name; do
+        not copy its text. Every scenario of the delta specs appears in
+        exactly one test task.
+      - No tasks for the process: reviews, checks, commits, the verifier and
+        the archive are steps of the flow (see "Checks" in CLAUDE.md), not
+        tasks.
+
+      Example:
+      ```
+      # Tasks
+
+      ## 1. Retry policy in job-service
+
+      Owns: apps/job-service/src/{domain,infra}/retry/** · Depends on: none · Done when: npm run check
+
+      - [ ] 1.1 Test "Failed job is retried up to the configured limit" (retry-policy.test.ts)
+      - [ ] 1.2 RetryPolicy interface and PRetryRetryPolicy
+      - [ ] 1.3 Test "Attempt number is stored" (sql-job-repository.int.test.ts)
+      - [ ] 1.4 Column attempts in jobs: migration and repository mapping
+      ```
+    requires:
+      - specs
+
+apply:
+  requires: [ tasks ]
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Follow the apply skill and "Testing", "Checks" and "Git" in
+    CLAUDE.md: the change's own worktree and branch, test first, a test review
+    and one commit per task group, never a merge. Pause if you hit blockers or
+    need clarification; a new behaviour question goes into brief.md ("To confirm") and to
+    the user, never into the code as an assumption.

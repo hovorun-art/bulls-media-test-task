@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+.claude/settings.local.json
+*.sqlite
+*.db
+.eslintcache

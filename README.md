@@ -460,3 +460,20 @@ Every decision and its reason is logged in
 - the choice of LangGraph;
 - the switch to a local model;
 - the libraries used.
+
+## 13. Reading order (for a new developer)
+
+1. `samples/tickets.json` and `apps/triage/data/`: what goes in and the mock world the agent sees.
+2. `packages/contracts/src/triage.ts`: the ticket, the result and the trace, as Zod schemas.
+3. `apps/triage/src/domain/`: the ports. `triage/support-model.ts` is the most important one: what
+   the graph asks of the model.
+4. `apps/triage/src/infra/triage/langgraph-triage-agent.ts`: the graph itself. Read the class
+   comment, then `constructor` (nodes and edges), then each node.
+5. `apps/triage/src/infra/triage/langgraph-triage-agent.test.ts`: every behaviour of the agent,
+   one test each, with the model mocked.
+6. `apps/triage/src/infra/triage/langchain-support-model.ts` and `support-prompts.ts`: how a step
+   becomes a LangChain call (structured output, tool calling, retries, repair, fencing).
+7. `apps/triage/src/app/triage/triage.module.ts`: how everything is wired, and where Ollama or
+   Anthropic is chosen.
+8. `apps/triage/test/e2e/`: the HTTP API as a client sees it.
+9. `apps/web/src/app.tsx` and `features/`: the UI.

@@ -38,3 +38,4 @@
 - 2026-11-13 The repeated-call guard goes into the brief as a "To confirm" item - why: the verifier flagged it as behaviour the user did not approve; it stays in the code because without it eligible refunds were escalated in the live run; the user decides on return; by: agent (technical)
 - 2026-11-13 The two retry integration tests wait for LangChain's real backoff (about 7 s together) - why: withRetry takes no injectable sleeper and fake timers would test LangChain, not our wiring; accepted cost at the integration level; by: agent (technical)
 - 2026-11-13 Brief: added the Behaviour line for the repeated-call rule; the approval is removed until the user approves the brief again - why: verifier gap 1; by: agent (technical), awaiting user
+- 2026-11-13 Correction of the entry above about "To confirm": the repeated-call rule went straight under Behaviour (no To confirm item), so the user only has to approve the brief - by: agent (technical)

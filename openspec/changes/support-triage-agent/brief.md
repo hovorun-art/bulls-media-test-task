@@ -12,6 +12,7 @@ Behaviour:
 - Actions: reply (answer drafted), propose_refund (refund suggested for a human to approve, never executed), escalate (to a human, with the reason), refuse (out of scope or abusive, polite refusal drafted).
 - The agent works in several steps (a LangGraph graph): input guard, classify, gather facts with tools, decide, draft, validate the output.
 - Tools: search the local knowledge base (shop policies), look up an order, check refund eligibility by fixed policy rules; at most 8 tool calls per run.
+- A tool call the model repeats with the same arguments is not run again: research ends and the agent decides (added after the first approval, from the live run).
 - Refund eligibility: order delivered, at most 30 days since delivery, not refunded yet; an eligible amount above 500 USD is escalated instead of proposed.
 - An order is shown to the agent only if the ticket's email owns it; otherwise the agent gets "not found".
 - Suspected prompt injection in the ticket (e.g. "ignore previous instructions") never changes the policy: the run is flagged and escalated.

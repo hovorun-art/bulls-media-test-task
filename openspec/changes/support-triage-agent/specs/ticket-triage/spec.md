@@ -107,3 +107,10 @@ The validate step SHALL drop cited article ids that are not in the knowledge bas
 #### Scenario: Unknown cited article is dropped
 - **WHEN** the model cites an article id that the knowledge base does not have
 - **THEN** the result does not list that id
+
+### Requirement: Model provider is configurable
+The service SHALL use the model provider named by its configuration, a local model by default or the hosted one, and SHALL refuse to start with a clear error when the chosen provider is not usable.
+
+#### Scenario: Hosted provider without a key does not start
+- **WHEN** the hosted provider is chosen and no API key is configured
+- **THEN** the service does not start and the error names the missing key

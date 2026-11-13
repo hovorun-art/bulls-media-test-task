@@ -36,14 +36,15 @@ Owns: apps/triage/src/domain/triage/**, apps/triage/src/infra/triage/** · Depen
 - [ ] 3.4 Test "Tool call limit stops research and escalates", "Injected instructions are flagged and escalated", "Out-of-scope request is refused" and "Unknown cited article is dropped" (langgraph-triage-agent.test.ts)
 - [ ] 3.5 Test "Eligible refund is proposed", "Refund outside the window is not proposed" and "Refund above the limit is escalated" (langgraph-triage-agent.test.ts)
 - [ ] 3.6 Test "Final decision is logged with the run id" (ticket-triage.impl.test.ts) and `TicketTriageImpl` (run id, agent, storage, decision log)
-- [ ] 3.7 Test "Invalid model output is repaired" (anthropic-support-model.test.ts)
-- [ ] 3.8 `AnthropicSupportModel`: ChatAnthropic, structured output with repair attempts, tool binding, configured retries
-- [ ] 3.9 Test "Model call is retried after a transient failure" against a local HTTP stub (anthropic-support-model.int.test.ts)
+- [ ] 3.7 Test "Invalid model output is repaired" (langchain-support-model.test.ts)
+- [ ] 3.8 `LangChainSupportModel` over any LangChain chat model: structured output with repair attempts, tool binding, configured retries; chat model factory for Ollama (default) and Anthropic
+- [ ] 3.9 Test "Model call is retried after a transient failure" against a local HTTP stub (langchain-support-model.int.test.ts)
 
 ## 4. HTTP API
 
-Owns: apps/triage/src/app/**, apps/triage/src/main.ts, apps/triage/test/** · Depends on: 3 · Done when: npm run check && npm run test:e2e -- --filter=@triage/triage
+Owns: apps/triage/src/app/**, apps/triage/src/main.ts, apps/triage/test/** · Depends on: 3 · Done when: npm run check && npm run test:e2e -- --filter=@triage/service
 
+- [ ] 4.0 Test "Hosted provider without a key does not start" (apps/triage/src/app/config.test.ts) and the triage config schema
 - [ ] 4.1 Wiring: `AppModule`, triage and runs modules with factories for every port, config, migrations at start
 - [ ] 4.2 Shared `triage-under-test.ts` (starts the app with temp storage and a mocked `SupportModel`)
 - [ ] 4.3 Test "Ticket with a malformed email is rejected", "Ticket with an empty body is rejected" and "Ticket body over the length limit is rejected" (test/e2e/triage.e2e.test.ts)

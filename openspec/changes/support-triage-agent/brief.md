@@ -19,22 +19,22 @@ Behaviour:
 - LLM call failures are retried 3 times with exponential backoff, output that fails the schema gets 2 repair attempts; when retries run out the result is `escalate` with the reason, never a crash.
 - Every run is stored with its trace (each step and tool call: input, output, duration) and can be listed and opened (`GET /api/runs`, `GET /api/runs/:id`) and in the web UI.
 - Structured JSON logs for each step, tool call and the final decision.
+- The model provider is chosen by `LLM_PROVIDER`: `ollama` (default, a free local model, no key) or `anthropic` (needs `ANTHROPIC_API_KEY`); a missing key or unreachable Ollama is reported at start with a clear error.
 - Web UI: form with sample tickets to pick, the result (decision card, reply draft, summary), the trace timeline, the run history.
 - README with every section the task asks for, sample tickets with expected outputs.
 
 Not doing:
 - Sending emails, executing refunds, real CRM/helpdesk integrations, auth, multi-turn chat with the customer.
-- An offline mode without an API key: for now the user's real key runs it; how reviewers run it without that key is an open point listed in the README's next steps.
 
 ## Technical
 
 As usual: npm workspaces + Turborepo monorepo per `.claude/rules/`; one backend service `apps/triage`, `apps/web`, `packages/{kernel,contracts,service-kit}`.
 Reuses: nothing yet: the repository has only the flow scaffold; this change creates the workspace tooling too.
-New: LangGraph.js (`@langchain/langgraph`) + `@langchain/anthropic` for the agent - user's choice, explicit graph instead of a hand-made orchestrator.
+New: LangGraph.js (`@langchain/langgraph`) + `@langchain/ollama` (default, model `qwen3:8b` by `OLLAMA_MODEL`) and `@langchain/anthropic` (optional, `claude-sonnet-5-5` by `ANTHROPIC_MODEL`) - user's choice: no paid credits; both behind one model port.
 New: NestJS, Zod, pino, SQLite via built-in `node:sqlite` (runs and traces, no Docker), Vitest, ESLint, React + Vite, TanStack Query, Testing Library, MSW, Playwright, i18next - user allowed the standard set.
 New: knowledge base as markdown files and orders as a JSON seed inside `apps/triage` (mock data).
 Risks: LLM is non-deterministic - tests use a fake chat model; deterministic rules (eligibility, ownership, injection check, schema validation) decide what must not depend on the LLM.
-Risks: the service needs `ANTHROPIC_API_KEY` (root `.env`); without it it refuses to start with a clear error. Model `claude-sonnet-5-5` by default, `ANTHROPIC_MODEL` overrides it.
+Risks: a small local model is slower and weaker than Claude - deterministic rules guard the decisions, schema repair catches bad output; README states the expected speed and the Anthropic option.
 Work: on branch `support-triage-agent` in this checkout and this session, not a separate worktree.
 Capabilities: `ticket-triage` (new), `triage-runs` (new), `triage-web` (new).
 

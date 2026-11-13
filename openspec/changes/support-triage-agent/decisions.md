@@ -16,3 +16,5 @@
 - 2026-11-13 Refund rule: delivered, <= 30 days since delivery, not refunded; amount > 500 USD escalates - why: realistic simple policy; by: user confirmed assumption
 - 2026-11-13 Work on a branch in this checkout and this session instead of a separate worktree and session - why: the user is away, and the approval hook reads this checkout; by: user confirmed assumption
 - 2026-11-13 API key: the user puts `ANTHROPIC_API_KEY` into the root `.env`; the agent never reads it, the app loads it, and a live run feeds the README examples - by: user
+- 2026-11-13 Default provider changed to Ollama (local `qwen3:8b`), Anthropic kept as an option behind the same port, chosen by `LLM_PROVIDER` - why: the user does not want to pay API credits, and a Claude subscription cannot be used as an API key; this also lets reviewers run it without a key; instead of: Anthropic only, Gemini free tier, Claude Code CLI under the subscription; by: user
+- 2026-11-13 The agent installs Ollama with Homebrew and pulls `qwen3:8b` on this machine - by: user

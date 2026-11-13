@@ -1,3 +1,0 @@
-PARTIAL
-commit: 6640fbcb1567c1ee1da783ed3876af3ddd1930ae
-- brief.md is not the approved brief: openspec/changes/support-triage-agent/.decisions-approved is deleted in the working tree and the committed marker's sha256 (f77809407aecac1ef2c601def100b1a5bf8765e5a0d2b9b99a82c6eb9fc530db) differs from the current brief.md (a17115cca14bbf7ac108bd2e92b7ac6b89a73a106d96c8326a866d9ba105b16a); the user must approve the brief again (it now holds the repeated-tool-call Behaviour line backing the spec requirement "The agent gathers facts with tools" / scenario "Repeated tool call ends research") and the new marker must be committed.

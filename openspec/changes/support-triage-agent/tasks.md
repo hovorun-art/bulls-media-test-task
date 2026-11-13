@@ -30,15 +30,15 @@ Owns: apps/triage/package.json, apps/triage/tsconfig.json, apps/triage/eslint.co
 
 Owns: apps/triage/src/domain/triage/**, apps/triage/src/infra/triage/** · Depends on: 2 · Done when: npm run check:full
 
-- [ ] 3.1 Domain: `TicketTriage` use case, `TriageAgent` and `SupportModel` ports with their request and response types
-- [ ] 3.2 Test "Order status question is answered with a reply", "Trace lists the steps in order" and "Tool call appears in the trace" (langgraph-triage-agent.test.ts)
-- [ ] 3.3 `LangGraphTriageAgent`: StateGraph guard → classify → research ⇄ tools → decide → policy → draft → validate
-- [ ] 3.4 Test "Tool call limit stops research and escalates", "Injected instructions are flagged and escalated", "Out-of-scope request is refused" and "Unknown cited article is dropped" (langgraph-triage-agent.test.ts)
-- [ ] 3.5 Test "Eligible refund is proposed", "Refund outside the window is not proposed" and "Refund above the limit is escalated" (langgraph-triage-agent.test.ts)
-- [ ] 3.6 Test "Final decision is logged with the run id" (ticket-triage.impl.test.ts) and `TicketTriageImpl` (run id, agent, storage, decision log)
-- [ ] 3.7 Test "Invalid model output is repaired" (langchain-support-model.test.ts)
-- [ ] 3.8 `LangChainSupportModel` over any LangChain chat model: structured output with repair attempts, tool binding, configured retries; chat model factory for Ollama (default) and Anthropic
-- [ ] 3.9 Test "Model call is retried after a transient failure" against a local HTTP stub (langchain-support-model.int.test.ts)
+- [x] 3.1 Domain: `TicketTriage` use case, `TriageAgent` and `SupportModel` ports with their request and response types
+- [x] 3.2 Test "Order status question is answered with a reply", "Trace lists the steps in order" and "Tool call appears in the trace" (langgraph-triage-agent.test.ts)
+- [x] 3.3 `LangGraphTriageAgent`: StateGraph guard → classify → research ⇄ tools → decide → policy → draft → validate
+- [x] 3.4 Test "Tool call limit stops research and escalates", "Injected instructions are flagged and escalated", "Out-of-scope request is refused" and "Unknown cited article is dropped" (langgraph-triage-agent.test.ts)
+- [x] 3.5 Test "Eligible refund is proposed", "Refund outside the window is not proposed" and "Refund above the limit is escalated" (langgraph-triage-agent.test.ts)
+- [x] 3.6 Test "Final decision is logged with the run id" (ticket-triage.impl.test.ts) and `TicketTriageImpl` (run id, agent, storage, decision log)
+- [x] 3.7 Test "Invalid model output is repaired" (langchain-support-model.test.ts)
+- [x] 3.8 `LangChainSupportModel` over any LangChain chat model: structured output with repair attempts, tool binding, configured retries; chat model factory for Ollama (default) and Anthropic
+- [x] 3.9 Test "Model call is retried after a transient failure" against a local HTTP stub (langchain-support-model.int.test.ts)
 
 ## 4. HTTP API
 

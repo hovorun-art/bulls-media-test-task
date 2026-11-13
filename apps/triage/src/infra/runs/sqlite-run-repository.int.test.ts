@@ -116,7 +116,9 @@ describe('SqliteRunRepository', () => {
     const run = aRun();
     await repository.save({ run });
 
-    await expect(repository.save({ run: aRun({ id: run.id, createdAt: '2026-11-14T10:00:00.000Z' }) })).rejects.toThrow();
+    await expect(repository.save({ run: aRun({ id: run.id, createdAt: '2026-11-14T10:00:00.000Z' }) })).rejects.toThrow(
+      /UNIQUE constraint failed/,
+    );
 
     expect((await repository.get({ id: run.id })).run.createdAt).toBe('2026-11-13T10:00:00.000Z');
   });
@@ -125,5 +127,17 @@ describe('SqliteRunRepository', () => {
     const repository = new SqliteRunRepository({ database });
 
     await expect(repository.get({ id: randomUUID() })).rejects.toBeInstanceOf(RunNotFoundError);
+  });
+
+  it('keeps the runs across a restart', async () => {
+    const run = aRun();
+    await new SqliteRunRepository({ database }).save({ run });
+    database.close();
+    database = new DatabaseSync(join(directory, 'runs.sqlite'));
+
+    const migrated = new SqliteSchemaMigrator({ database }, { directory: migrationsDirectory }).migrate();
+
+    expect(migrated).toEqual({ applied: [] });
+    expect((await new SqliteRunRepository({ database }).get({ id: run.id })).run).toEqual(run);
   });
 });

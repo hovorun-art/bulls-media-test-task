@@ -262,7 +262,9 @@ export class LangGraphTriageAgent implements TriageAgent {
     const eligibility = this.d.refundPolicy.check({ order });
     if (!eligibility.eligible) return refusal(`Refund not allowed: ${eligibility.reason}`);
     if (eligibility.overLimit) {
-      return refusal(`Refund of ${eligibility.amount} ${eligibility.currency} is above the limit for automatic proposals`);
+      return refusal(
+        `Refund of ${eligibility.amount} ${eligibility.currency} is above the ${eligibility.maxAutoAmount} ${eligibility.currency} limit for automatic proposals`,
+      );
     }
     return { ...decision, refund: { orderId: order.id, amount: eligibility.amount, currency: eligibility.currency } };
   }

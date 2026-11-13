@@ -24,12 +24,18 @@ describe('TraceTimeline', () => {
       output: { found: true, carrier: 'UPS' },
     });
     render(<TraceTimeline trace={[toolCall]} />);
-    expect(screen.queryByText(/"carrier": "UPS"/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /tool · get_order/ }));
 
     expect(screen.getByText(/"orderId": "A-1001"/)).toBeVisible();
     expect(screen.getByText(/"carrier": "UPS"/)).toBeVisible();
+  });
+
+  it('starts with every step collapsed', () => {
+    render(<TraceTimeline trace={[aTraceEntry({ output: { category: 'other' } })]} />);
+
+    expect(screen.getByRole('button', { name: /classify/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/"category": "other"/)).not.toBeInTheDocument();
   });
 
   it('collapses a step on a second click', async () => {

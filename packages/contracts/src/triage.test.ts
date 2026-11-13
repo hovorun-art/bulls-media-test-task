@@ -72,6 +72,8 @@ describe('TicketSchema', () => {
     ['subject of 201 characters', 'subject', { subject: 'x'.repeat(201) }],
     ['order id with symbols', 'orderId', { orderId: 'drop table;' }],
     ['order id of 33 characters', 'orderId', { orderId: 'A'.repeat(33) }],
+    ['empty order id', 'orderId', { orderId: '' }],
+    ['whitespace-only order id', 'orderId', { orderId: '   ' }],
   ])('rejects a %s', (_case, field, overrides) => {
     expect(issuePaths(TicketSchema.safeParse(aTicket(overrides)))).toEqual([field]);
   });
@@ -80,6 +82,12 @@ describe('TicketSchema', () => {
 describe('TriageResultSchema', () => {
   it('accepts a complete result', () => {
     expect(TriageResultSchema.safeParse(aTriageResult()).success).toBe(true);
+  });
+
+  it('accepts a refund of 0', () => {
+    const result = aTriageResult({ refund: { orderId: 'A-1', amount: 0, currency: 'USD' } });
+
+    expect(TriageResultSchema.safeParse(result).success).toBe(true);
   });
 
   it('accepts an escalation without a draft and without a refund', () => {
@@ -102,6 +110,12 @@ describe('TriageResultSchema', () => {
 describe('TraceEntrySchema', () => {
   it('accepts a tool call entry', () => {
     expect(TraceEntrySchema.safeParse(aTraceEntry()).success).toBe(true);
+  });
+
+  it('accepts a failed step without a tool and with no duration', () => {
+    const entry = aTraceEntry({ step: 'classify', tool: null, error: 'Model unavailable', durationMs: 0 });
+
+    expect(TraceEntrySchema.safeParse(entry).success).toBe(true);
   });
 
   it.each([

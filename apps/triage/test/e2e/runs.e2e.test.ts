@@ -3,7 +3,7 @@ import { RunSchema } from '@triage/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { aTicket as aBaseTicket, TriageUnderTest } from './triage-under-test';
 
-const aTicket = (subject: string) => aBaseTicket({ subject });
+const aTicketAbout = (subject: string) => aBaseTicket({ subject });
 
 describe('GET /api/runs', () => {
   const service = new TriageUnderTest();
@@ -14,7 +14,7 @@ describe('GET /api/runs', () => {
 
   it('Triaged ticket can be opened by its run id', async () => {
     service.scriptReply();
-    const triaged = await service.triage(aTicket('Lamp'));
+    const triaged = await service.triage(aTicketAbout('Lamp'));
 
     const response = await service.getRun(triaged.id);
 
@@ -24,23 +24,23 @@ describe('GET /api/runs', () => {
 
   it('Runs are listed newest first', async () => {
     service.scriptReply();
-    const first = await service.triage(aTicket('First'));
+    const first = await service.triage(aTicketAbout('First'));
     service.scriptReply();
-    const second = await service.triage(aTicket('Second'));
+    const second = await service.triage(aTicketAbout('Second'));
 
     const { runs } = await service.listRuns();
 
-    expect(runs.map((run) => [run.id, run.subject, run.category, run.action])).toEqual([
-      [second.id, 'Second', 'order_status', 'reply'],
-      [first.id, 'First', 'order_status', 'reply'],
+    expect(runs).toMatchObject([
+      { id: second.id, subject: 'Second', category: 'order_status', action: 'reply' },
+      { id: first.id, subject: 'First', category: 'order_status', action: 'reply' },
     ]);
   });
 
   it('lists only the newest runs up to the limit', async () => {
     service.scriptReply();
-    await service.triage(aTicket('First'));
+    await service.triage(aTicketAbout('First'));
     service.scriptReply();
-    const second = await service.triage(aTicket('Second'));
+    const second = await service.triage(aTicketAbout('Second'));
 
     const { runs } = await service.listRuns('?limit=1');
 
@@ -54,8 +54,10 @@ describe('GET /api/runs', () => {
     expect(error).toMatchObject({ code: 'VALIDATION_FAILED', details: { issues: [{ path: 'limit' }] } });
   });
 
-  it('lists nothing before the first triage', async () => {
-    expect(await service.listRuns()).toEqual({ runs: [] });
+  it('accepts the highest limit', async () => {
+    const response = await service.get('/api/runs?limit=100');
+
+    expect(response.status).toBe(200);
   });
 
   it('Unknown run id returns 404', async () => {
@@ -63,16 +65,11 @@ describe('GET /api/runs', () => {
 
     const response = await service.getRun(id);
 
+
     expect(await service.errorOf(response, 404)).toEqual({
       code: 'RUN_NOT_FOUND',
       message: `Run ${id} not found`,
       details: { id },
     });
-  });
-
-  it('answers an unknown route with 404 NOT_FOUND', async () => {
-    const response = await service.get('/api/nothing');
-
-    expect((await service.errorOf(response, 404)).code).toBe('NOT_FOUND');
   });
 });

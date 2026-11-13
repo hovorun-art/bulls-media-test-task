@@ -68,6 +68,40 @@ describe('TicketForm', () => {
     await vi.waitFor(() => expect(sent).toEqual({ email: 'anna@example.com', subject: '', body: 'Refund please', orderId: 'A-1002' }));
   });
 
+  it('leaves out an order id of only spaces', async () => {
+    let sent: unknown;
+    server.use(
+      http.post('*/api/triage', async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json(aRun());
+      }),
+    );
+    renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
+    await userEvent.type(screen.getByLabelText('Message'), 'Lamp');
+    await userEvent.type(screen.getByLabelText('Order id (optional)'), '   ');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
+
+    await vi.waitFor(() => expect(sent).toEqual({ email: 'anna@example.com', subject: '', body: 'Lamp' }));
+  });
+
+  it('clears the error after a later success', async () => {
+    server.use(
+      http.post('*/api/triage', () =>
+        HttpResponse.json({ code: 'VALIDATION_FAILED', message: 'Invalid input', details: {} }, { status: 400 }), { once: true }),
+      http.post('*/api/triage', () => HttpResponse.json(aRun())),
+    );
+    renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
+    await userEvent.type(screen.getByLabelText('Message'), 'Lamp');
+    await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
+    await screen.findByRole('alert');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
+
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
   it('disables the button while the agent works', async () => {
     server.use(http.post('*/api/triage', () => new Promise<Response>(() => undefined)));
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);

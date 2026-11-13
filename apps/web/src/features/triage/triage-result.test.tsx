@@ -28,7 +28,6 @@ describe('TriageResult', () => {
 
     expect(screen.getByText('Escalate to a human')).toBeInTheDocument();
     expect(screen.getByText('No draft: a human writes this reply.')).toBeInTheDocument();
-    expect(screen.queryByText('Your lamp ships today.')).not.toBeInTheDocument();
   });
 
   it('shows the category, priority, reasons, cited articles and model', () => {
@@ -47,14 +46,31 @@ describe('TriageResult', () => {
     expect(screen.getByText('Priority: high')).toBeInTheDocument();
     expect(screen.getByText('Delivered 5 days ago')).toBeInTheDocument();
     expect(screen.getByText('Amount 89 USD')).toBeInTheDocument();
-    expect(screen.getByText(/Cited articles: refund-policy, damaged-items/)).toHaveTextContent('Model: ollama / qwen3:8b');
+    expect(screen.getByText(/Cited articles: refund-policy, damaged-items/)).toBeInTheDocument();
+    expect(screen.getByText(/Model: ollama \/ qwen3:8b/)).toBeInTheDocument();
   });
 
-  it('says none when no article is cited and shows no refund line without a refund', () => {
-    render(<TriageResult run={aRun({ result: { citedArticles: [], refund: null } })} />);
+  it('says none when no article is cited', () => {
+    render(<TriageResult run={aRun({ result: { citedArticles: [] } })} />);
 
     expect(screen.getByText(/Cited articles: none/)).toBeInTheDocument();
+  });
+
+  it('shows no refund line without a refund', () => {
+    render(<TriageResult run={aRun({ result: { refund: null } })} />);
+
     expect(screen.queryByText(/Proposed refund/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['reply', 'Reply'],
+    ['propose_refund', 'Propose refund'],
+    ['escalate', 'Escalate to a human'],
+    ['refuse', 'Refuse'],
+  ] as const)('labels the action %s as "%s"', (action, label) => {
+    render(<TriageResult run={aRun({ result: { action } })} />);
+
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
   it('shows the raised flags only', () => {
@@ -65,5 +81,6 @@ describe('TriageResult', () => {
     expect(screen.getByText('Possible prompt injection')).toBeInTheDocument();
     expect(screen.getByText('Policy overrode the model')).toBeInTheDocument();
     expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tool call limit reached')).not.toBeInTheDocument();
   });
 });

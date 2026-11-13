@@ -6,7 +6,7 @@ Owns: package.json, package-lock.json, turbo.json, tsconfig.json, .nvmrc, .env.e
 
 - [x] 1.1 Root npm workspaces + Turborepo: `package.json` scripts `check`, `check:full`, `test:e2e`, `dev`; `turbo.json` tasks typecheck, lint, test:unit, test:integration, test:e2e, test:e2e:ui, build, dev
 - [x] 1.2 `tooling/`: shared tsconfig, ESLint flat config with layer boundaries (`eslint-plugin-boundaries`), Vitest presets for unit, integration and e2e projects
-- [x] 1.3 `packages/kernel`: ports `Clock`, `Random`, `Sleeper`, `Logger` with system implementations; `DomainError` and closed `ERROR_CODES`
+- [x] 1.3 `packages/kernel`: ports `Clock`, `Random`, `Logger` with system implementations; `DomainError` and closed `ERROR_CODES` (no `Sleeper`: see decisions.md)
 - [x] 1.4 Test the ticket schema limits and the result schema (packages/contracts/src/triage.test.ts)
 - [x] 1.5 `packages/contracts`: Zod schemas for the ticket, the triage result, the trace entry, the run, the run list and the error body
 - [x] 1.6 Test the error-code to HTTP status mapping and the uniform error body (packages/service-kit/src/errors/domain-error.filter.test.ts)

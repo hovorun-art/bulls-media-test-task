@@ -3,19 +3,12 @@ import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { server } from '../../test-server';
-import { renderWithQuery } from '../../test-utils';
+import { aRunSummary, renderWithQuery } from '../../test-utils';
 import { RunHistory } from './run-history';
 
 const RUN_ID = crypto.randomUUID();
 
-const aSummary = (overrides: Record<string, unknown> = {}) => ({
-  id: RUN_ID,
-  createdAt: '2026-11-13T12:00:00.000Z',
-  subject: 'Laptop refund',
-  category: 'refund_request',
-  action: 'escalate',
-  ...overrides,
-});
+const aSummary = (overrides: Parameters<typeof aRunSummary>[0] = {}) => aRunSummary({ id: RUN_ID, ...overrides });
 
 describe('RunHistory', () => {
   it('lists past runs and reports the one clicked', async () => {
@@ -23,7 +16,7 @@ describe('RunHistory', () => {
     const onSelect = vi.fn();
     renderWithQuery(<RunHistory selectedId={null} onSelect={onSelect} />);
 
-    await userEvent.click(await screen.findByRole('button', { name: /Laptop refund/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Laptop refund Escalate to a human/ }));
 
     expect(onSelect).toHaveBeenCalledWith(RUN_ID);
   });

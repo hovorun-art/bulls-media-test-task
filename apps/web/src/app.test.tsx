@@ -4,7 +4,7 @@ import { HttpResponse, http } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { App } from './app';
 import { server } from './test-server';
-import { aRun, renderWithQuery } from './test-utils';
+import { aRun, aRunSummary, renderWithQuery } from './test-utils';
 
 const noRuns = () => http.get('*/api/runs', () => HttpResponse.json({ runs: [] }));
 
@@ -17,24 +17,33 @@ describe('App', () => {
     expect(await screen.findByText("Submit a ticket or open a past run to see the agent's decision.")).toBeInTheDocument();
   });
 
-  it('opens the result of a ticket just triaged', async () => {
-    const run = aRun({ result: { summary: 'order_status, normal priority. Action: reply.' } });
-    server.use(noRuns(), http.post('*/api/triage', () => HttpResponse.json(run)));
+  it('opens the result of a ticket just triaged and lists it in the history', async () => {
+    const run = aRun({ result: { summary: 'Just triaged: the lamp ships tomorrow.' } });
+    const summary = aRunSummary({ id: run.id, subject: 'Lamp question', category: 'order_status', action: 'reply' });
+    let stored: unknown[] = [];
+    server.use(
+      http.get('*/api/runs', () => HttpResponse.json({ runs: stored })),
+      http.get(`*/api/runs/${run.id}`, () => HttpResponse.json(run)),
+      http.post('*/api/triage', () => {
+        stored = [summary];
+        return HttpResponse.json(run);
+      }),
+    );
     renderWithQuery(<App />);
     await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
     await userEvent.type(screen.getByLabelText('Message'), 'Where is my lamp?');
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
-    expect(await screen.findByText('order_status, normal priority. Action: reply.')).toBeInTheDocument();
+    expect(await screen.findByText('Just triaged: the lamp ships tomorrow.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Lamp question/ })).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows an error when a past run cannot be opened', async () => {
     const id = crypto.randomUUID();
     server.use(
-      http.get('*/api/runs', () =>
-        HttpResponse.json({ runs: [{ id, createdAt: '2026-11-13T12:00:00.000Z', subject: 'Gone', category: 'other', action: 'reply' }] }),
-      ),
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [aRunSummary({ id, subject: 'Gone' })] })),
       http.get(`*/api/runs/${id}`, () =>
         HttpResponse.json({ code: 'RUN_NOT_FOUND', message: `Run ${id} not found`, details: { id } }, { status: 404 }),
       ),
@@ -53,11 +62,7 @@ describe('App', () => {
       trace: [{ step: 'guard', tool: null, input: null, output: null, error: null, startedAt: '2026-11-13T12:00:00.000Z', durationMs: 1 }],
     });
     server.use(
-      http.get('*/api/runs', () =>
-        HttpResponse.json({
-          runs: [{ id: run.id, createdAt: run.createdAt, subject: 'Laptop refund', category: 'refund_request', action: 'escalate' }],
-        }),
-      ),
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [aRunSummary({ id: run.id, subject: 'Laptop refund' })] })),
       http.get(`*/api/runs/${run.id}`, () => HttpResponse.json(run)),
     );
     renderWithQuery(<App />);

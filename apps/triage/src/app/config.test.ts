@@ -19,7 +19,7 @@ describe('TriageConfigSchema', () => {
       LLM_PROVIDER: 'ollama',
       OLLAMA_BASE_URL: 'http://127.0.0.1:11434',
       OLLAMA_MODEL: 'qwen3:8b',
-      MODEL_MAX_ATTEMPTS: 3,
+      MODEL_MAX_ATTEMPTS: 4,
       MODEL_REPAIR_ATTEMPTS: 2,
       MAX_TOOL_CALLS: 8,
       REFUND_WINDOW_DAYS: 30,
@@ -39,8 +39,10 @@ describe('TriageConfigSchema', () => {
     expect(parse({ MAX_TOOL_CALLS: '3', PORT: '0' })).toMatchObject({ MAX_TOOL_CALLS: 3, PORT: 0 });
   });
 
-  it('accepts no repair attempts', () => {
-    expect(parse({ MODEL_REPAIR_ATTEMPTS: '0' }).MODEL_REPAIR_ATTEMPTS).toBe(0);
+  it('accepts the lowest allowed values', () => {
+    const lowest = { MODEL_REPAIR_ATTEMPTS: '0', MODEL_MAX_ATTEMPTS: '1', MAX_TOOL_CALLS: '1', REFUND_WINDOW_DAYS: '0' };
+
+    expect(parse(lowest)).toMatchObject({ MODEL_REPAIR_ATTEMPTS: 0, MODEL_MAX_ATTEMPTS: 1, MAX_TOOL_CALLS: 1, REFUND_WINDOW_DAYS: 0 });
   });
 
   it.each([
@@ -48,6 +50,10 @@ describe('TriageConfigSchema', () => {
     ['ANTHROPIC_API_KEY', ''],
     ['OLLAMA_BASE_URL', 'localhost'],
     ['MODEL_MAX_ATTEMPTS', '0'],
+    ['MODEL_REPAIR_ATTEMPTS', '-1'],
+    ['REFUND_WINDOW_DAYS', '-1'],
+    ['OLLAMA_MODEL', ''],
+    ['ANTHROPIC_MODEL', ''],
     ['MAX_TOOL_CALLS', '0'],
     ['MAX_TOOL_CALLS', '2.5'],
     ['REFUND_MAX_AUTO_AMOUNT', '-1'],

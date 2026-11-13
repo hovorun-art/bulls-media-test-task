@@ -1,4 +1,5 @@
 import { HttpResponse, http } from 'msw';
+import { ZodError } from 'zod';
 import { describe, expect, it } from 'vitest';
 import { server } from '../test-server';
 import { aRun } from '../test-utils';
@@ -25,8 +26,9 @@ describe('api client', () => {
   });
 
   it('rejects an answer that does not match the run schema', async () => {
-    server.use(http.get('*/api/runs/r1', () => HttpResponse.json({ id: 'r1' })));
+    const id = crypto.randomUUID();
+    server.use(http.get(`*/api/runs/${id}`, () => HttpResponse.json({ id })));
 
-    await expect(getRun('r1')).rejects.toThrow();
+    await expect(getRun(id)).rejects.toBeInstanceOf(ZodError);
   });
 });

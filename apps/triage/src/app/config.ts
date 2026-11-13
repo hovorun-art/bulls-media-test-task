@@ -11,7 +11,7 @@ export const TriageConfigSchema = z
     OLLAMA_MODEL: z.string().min(1).default('qwen3:8b'),
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
     ANTHROPIC_MODEL: z.string().min(1).default('claude-sonnet-5-5'),
-    MODEL_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(3),
+    MODEL_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(4), // first call + 3 retries
     MODEL_REPAIR_ATTEMPTS: z.coerce.number().int().min(0).default(2),
     MAX_TOOL_CALLS: z.coerce.number().int().min(1).default(8),
     REFUND_WINDOW_DAYS: z.coerce.number().int().min(0).default(30),

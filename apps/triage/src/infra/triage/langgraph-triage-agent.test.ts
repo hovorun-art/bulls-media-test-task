@@ -47,6 +47,7 @@ const anEligibility = (overrides: Partial<CheckRefundPolicyResponse> = {}): Chec
   eligible: true,
   reason: 'delivered 5 days ago, inside the 30-day window',
   overLimit: false,
+  maxAutoAmount: 500,
   amount: 89,
   currency: 'USD',
   daysSinceDelivery: 5,
@@ -145,7 +146,10 @@ describe('LangGraphTriageAgent', () => {
     const order = anOrder({ id: 'A-1001', status: 'shipped' });
     model.classify.mockResolvedValueOnce(aClassification());
     model.nextStep.mockResolvedValueOnce({ step: { kind: 'tool', tool: 'get_order', args: { orderId: 'A-1001' } } });
-    orders.findForCustomer.mockResolvedValueOnce({ order });
+    orders.findForCustomer.mockImplementationOnce(async () => {
+      vi.setSystemTime(new Date('2026-11-13T12:00:00.025Z'));
+      return { order };
+    });
     model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
     model.decide.mockResolvedValueOnce({ action: 'reply', reasons: ['x'], citedArticles: [], refundOrderId: null });
     model.draft.mockResolvedValueOnce({ replyDraft: 'Hello' });
@@ -160,7 +164,7 @@ describe('LangGraphTriageAgent', () => {
       output: { found: true, order },
       error: null,
       startedAt: '2026-11-13T12:00:00.000Z',
-      durationMs: 0,
+      durationMs: 25,
     });
   });
 
@@ -387,7 +391,7 @@ describe('LangGraphTriageAgent', () => {
         action: 'escalate',
         refund: null,
         flags: { policyOverride: true },
-        reasons: ['Customer asks for a refund.', 'Refund of 1299 USD is above the limit for automatic proposals'],
+        reasons: ['Customer asks for a refund.', 'Refund of 1299 USD is above the 500 USD limit for automatic proposals'],
       });
     });
 
@@ -531,6 +535,7 @@ describe('LangGraphTriageAgent', () => {
             eligible: true,
             reason: 'delivered 5 days ago, inside the 30-day window',
             overLimit: false,
+            maxAutoAmount: 500,
             amount: 89,
             currency: 'USD',
             daysSinceDelivery: 5,
@@ -568,6 +573,92 @@ describe('LangGraphTriageAgent', () => {
 
       expect(model.decide.mock.calls[0]?.[0].observations[0]?.result).toEqual({ error: 'index missing' });
       expect(result.action).toBe('reply');
+    });
+  });
+
+  describe('guard, logs and summaries', () => {
+    /** A ticket whose research ends at once and whose model replies. */
+    function aRepliedTicket(classification: Partial<Classification> = {}) {
+      const setup = anAgent();
+      setup.model.classify.mockResolvedValueOnce(aClassification(classification));
+      setup.model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+      setup.model.decide.mockResolvedValueOnce({ action: 'reply', reasons: ['x'], citedArticles: [], refundOrderId: null });
+      setup.model.draft.mockResolvedValueOnce({ replyDraft: 'Hello' });
+      setup.knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+      return setup;
+    }
+
+    it('lets the guard read the subject and the body', async () => {
+      const { agent, injectionGuard } = aRepliedTicket();
+
+      await agent.run({ runId: RUN_ID, ticket: aTicket({ subject: 'Where is my order?', body: 'My lamp is late.' }) });
+
+      expect(injectionGuard.inspect).toHaveBeenCalledWith({ text: 'Where is my order?\nMy lamp is late.' });
+    });
+
+    it('logs each successful step with the run id', async () => {
+      const { agent, logger } = aRepliedTicket();
+
+      await agent.run({ runId: RUN_ID, ticket: aTicket() });
+
+      expect(logger.info).toHaveBeenCalledWith({
+        message: 'agent step',
+        context: { runId: RUN_ID, step: 'classify', tool: null, durationMs: 0, error: null },
+      });
+    });
+
+    it('leaves the missing issue summary out of the summary when classify fails', async () => {
+      const { agent, model, knowledgeBase } = anAgent();
+      model.classify.mockRejectedValueOnce(new ModelUnavailableError({ reason: 'timeout' }));
+      knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
+      const { result } = await agent.run({ runId: RUN_ID, ticket: aTicket() });
+
+      expect(result.summary).toBe('other, normal priority. Action: escalate. Why: Model unavailable: timeout.');
+    });
+
+    it('drafts for the decision of the policy, with the refund, and summarizes the amount', async () => {
+      const { agent, model, orders, refundPolicy, knowledgeBase } = anAgent();
+      model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request', issueSummary: 'Wants a refund.' }));
+      model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+      model.decide.mockResolvedValueOnce({
+        action: 'propose_refund',
+        reasons: ['Delivered 5 days ago.'],
+        citedArticles: [],
+        refundOrderId: 'A-1002',
+      });
+      orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
+      refundPolicy.check.mockReturnValueOnce(anEligibility());
+      model.draft.mockResolvedValueOnce({ replyDraft: 'We are reviewing a refund of 89 USD.' });
+      knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
+      const { result } = await agent.run({ runId: RUN_ID, ticket: aTicket() });
+
+      expect(model.draft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'propose_refund',
+          reasons: ['Delivered 5 days ago.'],
+          refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
+        }),
+      );
+      expect(result.summary).toBe(
+        'refund_request, normal priority. Action: propose_refund (89 USD for order A-1002). Wants a refund. Why: Delivered 5 days ago.',
+      );
+    });
+
+    it('drafts an escalation when the policy overrides a refund', async () => {
+      const { agent, model, orders, refundPolicy, knowledgeBase } = anAgent();
+      model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request' }));
+      model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+      model.decide.mockResolvedValueOnce({ action: 'propose_refund', reasons: ['x'], citedArticles: [], refundOrderId: 'A-1002' });
+      orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
+      refundPolicy.check.mockReturnValueOnce(anEligibility({ eligible: false, reason: 'already refunded' }));
+      model.draft.mockResolvedValueOnce({ replyDraft: 'A specialist will follow up.' });
+      knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
+      await agent.run({ runId: RUN_ID, ticket: aTicket() });
+
+      expect(model.draft).toHaveBeenCalledWith(expect.objectContaining({ action: 'escalate', refund: null }));
     });
   });
 });

@@ -26,7 +26,7 @@ export class RefundPolicyImpl implements RefundPolicy {
 
   check(req: CheckRefundPolicyRequest): CheckRefundPolicyResponse {
     const { order } = req;
-    const base = { overLimit: false, amount: order.total, currency: order.currency };
+    const base = { overLimit: false, maxAutoAmount: this.p.maxAutoAmount, amount: order.total, currency: order.currency };
     if (order.status !== 'delivered' || order.deliveredAt === null) {
       return { ...base, eligible: false, reason: 'not delivered', daysSinceDelivery: null };
     }

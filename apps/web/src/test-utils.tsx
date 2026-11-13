@@ -1,11 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
-import type { Run } from '@triage/contracts';
+import type { Run, RunSummary } from '@triage/contracts';
 import type { ReactElement } from 'react';
 
 export function renderWithQuery(ui: ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
+/** A run summary as GET /api/runs lists it. */
+export function aRunSummary(overrides: Partial<RunSummary> = {}): RunSummary {
+  return {
+    id: crypto.randomUUID(),
+    createdAt: '2026-11-13T12:00:00.000Z',
+    subject: 'Laptop refund',
+    category: 'refund_request',
+    action: 'escalate',
+    ...overrides,
+  };
 }
 
 type RunOverrides = Partial<Omit<Run, 'result'>> & { result?: Partial<Run['result']> };

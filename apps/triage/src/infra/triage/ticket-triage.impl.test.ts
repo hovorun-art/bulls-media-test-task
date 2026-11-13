@@ -78,6 +78,15 @@ describe('TicketTriageImpl', () => {
     expect(runs.save).toHaveBeenCalledWith({ run });
   });
 
+  it('fails and logs no decision when the run cannot be stored', async () => {
+    const { triage, runs, logger } = aTriage();
+    runs.save.mockRejectedValueOnce(new Error('disk full'));
+
+    await expect(triage.triage({ ticket: TICKET })).rejects.toThrow('disk full');
+
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
   it('stores and logs nothing when the agent fails unexpectedly', async () => {
     const { triage, runs, logger } = aTriage({ agentFails: true });
 

@@ -11,6 +11,7 @@ import { mockDeep, mockReset } from 'vitest-mock-extended';
 import { AppModule } from '../../src/app/app.module';
 import { TriageConfigSchema } from '../../src/app/config';
 import { DATABASE } from '../../src/app/core.module';
+import { RUN_REPOSITORY, type RunRepository } from '../../src/domain/runs/run-repository';
 import type { ModelReadiness } from '../../src/domain/triage/model-readiness';
 import { ModelUnavailableError } from '../../src/domain/triage/model-unavailable.error';
 import type { SupportModel } from '../../src/domain/triage/support-model';
@@ -60,7 +61,55 @@ export class TriageUnderTest {
   /** Before each test: no stubs on the model, no stored runs. */
   reset(): void {
     mockReset(this.model);
-    this.app?.get<DatabaseSync>(DATABASE).exec('DELETE FROM runs');
+    this.required().get<DatabaseSync>(DATABASE).exec('DELETE FROM runs');
+  }
+
+  private required(): INestApplication {
+    if (!this.app) throw new Error('The service is not started');
+    return this.app;
+  }
+
+  /** The model looks up the order and the tracking article, then replies. */
+  scriptOrderStatusResearch(): void {
+    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.classify.mockResolvedValueOnce({ category: 'order_status', priority: 'normal', issueSummary: 'Order status.' });
+    this.model.nextStep.mockResolvedValueOnce({ step: { kind: 'tool', tool: 'get_order', args: { orderId: 'A-1001' } } });
+    this.model.nextStep.mockResolvedValueOnce({
+      step: { kind: 'tool', tool: 'search_knowledge_base', args: { query: 'track my order' } },
+    });
+    this.model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+    this.model.decide.mockResolvedValueOnce({
+      action: 'reply',
+      reasons: ['The order is shipped with UPS.'],
+      citedArticles: ['order-tracking'],
+      refundOrderId: null,
+    });
+    this.model.draft.mockResolvedValueOnce({ replyDraft: 'Your lamp ships with UPS.' });
+  }
+
+  /** The model wants to refund the given order, without researching. */
+  scriptRefundDecision(orderId: string): void {
+    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.classify.mockResolvedValueOnce({ category: 'refund_request', priority: 'high', issueSummary: 'Refund.' });
+    this.model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+    this.model.decide.mockResolvedValueOnce({
+      action: 'propose_refund',
+      reasons: ['The customer wants a refund.'],
+      citedArticles: ['refund-policy'],
+      refundOrderId: orderId,
+    });
+    this.model.draft.mockResolvedValueOnce({ replyDraft: 'We are reviewing your refund.' });
+  }
+
+  /** Classification only: what the model is asked when the guard flags the ticket. */
+  scriptClassificationOnly(): void {
+    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.classify.mockResolvedValueOnce({ category: 'refund_request', priority: 'high', issueSummary: 'Refund.' });
+  }
+
+  /** The service's own run repository, to make it fail once like a broken disk would. */
+  runRepository(): RunRepository {
+    return this.required().get<RunRepository>(RUN_REPOSITORY);
   }
 
   /** The model answers a ticket with a plain reply after no research. */
@@ -113,6 +162,7 @@ export class TriageUnderTest {
 
   async errorOf(response: Response, status: number): Promise<ErrorBody> {
     expect(response.status).toBe(status);
-    return ErrorBodySchema.parse(await response.json());
+    // strict: framework internals (statusCode, error...) must not leak into the uniform body
+    return ErrorBodySchema.strict().parse(await response.json());
   }
 }

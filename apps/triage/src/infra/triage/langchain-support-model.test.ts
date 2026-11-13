@@ -24,6 +24,9 @@ function aChatModelAnswering(...answers: unknown[]) {
   return { chatModel, runnables };
 }
 
+const messagesSentTo = (runnable: { invoke: { mock: { calls: unknown[][] } } } | undefined) =>
+  runnable?.invoke.mock.calls[0]?.[0] as BaseMessage[];
+
 const aModel = (chatModel: BaseChatModel) =>
   new LangChainSupportModel(
     { chatModel },
@@ -51,13 +54,17 @@ describe('LangChainSupportModel', () => {
   });
 
   it('sends back only the latest validation error on each repair', async () => {
-    const { chatModel, runnables } = aChatModelAnswering({ category: 'lost_parcel' }, { priority: 'panic' }, CLASSIFICATION);
+    const { chatModel, runnables } = aChatModelAnswering(
+      { category: 'lost_parcel', priority: 'normal', issueSummary: 'x' },
+      { category: 'order_status', priority: 'panic', issueSummary: 'x' },
+      CLASSIFICATION,
+    );
 
     await aModel(chatModel).classify({ ticket: TICKET });
 
-    const thirdAttempt = runnables[2]?.invoke.mock.calls[0]?.[0] as BaseMessage[];
+    const thirdAttempt = messagesSentTo(runnables[2]);
     expect(thirdAttempt).toHaveLength(3);
-    expect(thirdAttempt.at(-1)?.content).toMatch(/^Your previous answer was not valid: category/);
+    expect(thirdAttempt.at(-1)?.content).toMatch(/^Your previous answer was not valid: priority/);
   });
 
   it('gives the model the classification and the gathered facts when deciding', async () => {
@@ -72,6 +79,32 @@ describe('LangChainSupportModel', () => {
     expect(prompt).toContain('"category":"order_status"');
     expect(prompt).toContain('<facts>');
     expect(prompt).toContain('"tool": "get_order"');
+  });
+
+  it('gives the drafting step the decided action, reasons and refund', async () => {
+    const { chatModel, runnables } = aChatModelAnswering({ replyDraft: 'We are reviewing your refund.' });
+    const refund = { orderId: 'A-1002', amount: 89, currency: 'USD' };
+
+    await aModel(chatModel).draft({
+      ticket: TICKET,
+      classification: CLASSIFICATION,
+      action: 'propose_refund',
+      reasons: ['Delivered 5 days ago'],
+      refund,
+      observations: [],
+    });
+
+    expect(String(messagesSentTo(runnables[0])[1]?.content)).toContain(
+      'Decision: {"action":"propose_refund","reasons":["Delivered 5 days ago"],"refund":{"orderId":"A-1002","amount":89,"currency":"USD"}}',
+    );
+  });
+
+  it('writes "not given" for a ticket without an order id', async () => {
+    const { chatModel, runnables } = aChatModelAnswering(CLASSIFICATION);
+
+    await aModel(chatModel).classify({ ticket: { ...TICKET, orderId: undefined } });
+
+    expect(String(messagesSentTo(runnables[0])[1]?.content)).toContain('order id: not given');
   });
 
   it('rejects an empty reply draft', async () => {

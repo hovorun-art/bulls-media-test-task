@@ -9,8 +9,13 @@ async function anOllamaWithModels(names: string[]) {
   return anOllamaAnswering(200, JSON.stringify({ models: names.map((name) => ({ name })) }));
 }
 
+/** Answers GET /api/tags with the given status and body, and 404 on any other path. */
 async function anOllamaAnswering(status: number, body: string) {
-  const server = createServer((_request, response) => {
+  const server = createServer((request, response) => {
+    if (request.method !== 'GET' || request.url !== '/api/tags') {
+      response.writeHead(404).end();
+      return;
+    }
     response.writeHead(status, { 'content-type': 'application/json' }).end(body);
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -66,6 +71,19 @@ describe('OllamaModelReadiness', () => {
     server = ollama.server;
 
     await expect(new OllamaModelReadiness({ baseUrl: ollama.baseUrl, model: 'qwen3:8b' }).check()).rejects.toThrow(
+      new ModelUnavailableError({ reason: `Ollama is not reachable at ${ollama.baseUrl}; start it with \`ollama serve\`` }),
+    );
+  });
+
+  it.each([
+    ['without a model list', '{}'],
+    ['that is not JSON', 'pong'],
+  ])('reports a 200 answer %s as Ollama not reachable', async (_case, body) => {
+    const ollama = await anOllamaAnswering(200, body);
+    server = ollama.server;
+    const readiness = new OllamaModelReadiness({ baseUrl: ollama.baseUrl, model: 'qwen3:8b' });
+
+    await expect(readiness.check()).rejects.toThrow(
       new ModelUnavailableError({ reason: `Ollama is not reachable at ${ollama.baseUrl}; start it with \`ollama serve\`` }),
     );
   });

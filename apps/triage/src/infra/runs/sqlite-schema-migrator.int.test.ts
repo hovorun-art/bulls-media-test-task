@@ -27,7 +27,7 @@ describe('SqliteSchemaMigrator', () => {
       .map((row) => row.name);
 
   it('applies the SQL files in name order and ignores other files', () => {
-    aMigration('002_b.sql', 'CREATE TABLE b (id TEXT REFERENCES a (id));');
+    aMigration('002_b.sql', 'CREATE INDEX a_id ON a (id); CREATE TABLE b (id TEXT);');
     aMigration('001_a.sql', 'CREATE TABLE a (id TEXT PRIMARY KEY);');
     aMigration('README.md', 'not sql');
 
@@ -53,5 +53,26 @@ describe('SqliteSchemaMigrator', () => {
 
     expect(tables()).toEqual([]);
     expect(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get()).toEqual({ count: 0 });
+  });
+
+  it('applies only the files added since the last run', () => {
+    aMigration('001_a.sql', 'CREATE TABLE a (id TEXT);');
+    new SqliteSchemaMigrator({ database }, { directory }).migrate();
+    aMigration('002_b.sql', 'CREATE TABLE b (id TEXT);');
+
+    const result = new SqliteSchemaMigrator({ database }, { directory }).migrate();
+
+    expect(result).toEqual({ applied: ['002_b.sql'] });
+    expect(tables()).toEqual(['a', 'b']);
+  });
+
+  it('keeps the earlier files applied when a later one fails', () => {
+    aMigration('001_a.sql', 'CREATE TABLE a (id TEXT);');
+    aMigration('002_bad.sql', 'CREATE TABLE broken (;');
+
+    expect(() => new SqliteSchemaMigrator({ database }, { directory }).migrate()).toThrow();
+
+    expect(tables()).toEqual(['a']);
+    expect(database.prepare('SELECT name FROM schema_migrations').all()).toEqual([{ name: '001_a.sql' }]);
   });
 });

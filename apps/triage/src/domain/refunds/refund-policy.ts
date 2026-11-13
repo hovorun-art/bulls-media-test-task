@@ -10,6 +10,8 @@ export interface CheckRefundPolicyResponse {
   reason: string;
   /** Eligible, but the amount is above the configured limit: a human must decide. */
   overLimit: boolean;
+  /** The configured limit for automatic refund proposals, in the order's currency. */
+  maxAutoAmount: number;
   amount: number;
   currency: string;
   daysSinceDelivery: number | null;

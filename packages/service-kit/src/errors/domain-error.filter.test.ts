@@ -62,10 +62,11 @@ describe('DomainErrorFilter', () => {
   });
 
   it.each([
+    ['NOT_FOUND', 404],
     ['MODEL_UNAVAILABLE', 503],
     ['CONFIG_INVALID', 500],
     ['INTERNAL_ERROR', 500],
-  ] as const)('maps %s to %i', (code, status) => {
+  ] as const)('maps %s to %i with its own code, message and details', (code, status) => {
     const { host, sent } = aHostCapturingTheResponse();
     const filter = new DomainErrorFilter(mockDeep<Logger>());
 
@@ -86,18 +87,15 @@ describe('DomainErrorFilter', () => {
   });
 
   it.each([
-    ['malformed JSON', new BadRequestException('Unexpected end of JSON input')],
-    ['a body over the size limit', new PayloadTooLargeException('request entity too large')],
-  ])('maps a framework rejection of %s to 400 VALIDATION_FAILED', (_case, exception) => {
+    ['malformed JSON', new BadRequestException('Unexpected end of JSON input'), 'Unexpected end of JSON input'],
+    ['a body over the size limit', new PayloadTooLargeException('request entity too large'), 'request entity too large'],
+  ])('maps a framework rejection of %s to 400 VALIDATION_FAILED', (_case, exception, message) => {
     const { host, sent } = aHostCapturingTheResponse();
     const filter = new DomainErrorFilter(mockDeep<Logger>());
 
     filter.catch(exception, host);
 
-    expect(sent).toEqual({
-      status: 400,
-      body: { code: 'VALIDATION_FAILED', message: exception.message, details: {} },
-    });
+    expect(sent).toEqual({ status: 400, body: { code: 'VALIDATION_FAILED', message, details: {} } });
   });
 
   it('answers another framework HTTP error with a generic 500', () => {

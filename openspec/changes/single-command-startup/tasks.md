@@ -4,16 +4,16 @@
 
 Owns: compose.yaml, compose.host-llm.yaml, .dockerignore, .env.example, apps/triage/Dockerfile, apps/web/Dockerfile, apps/web/nginx.conf, package.json (workspaces), package-lock.json, vitest.config.ts, tests/system-e2e/{package.json,tsconfig.json,eslint.config.js,vitest.config.ts,turbo.json,src/**} · Depends on: none · Done when: npm run check:full
 
-- [ ] 1.1 Workspace `tests/system-e2e` (`@triage/system-e2e`): package.json with `typecheck`, `lint`, `test:integration` (Vitest project `system-e2e:integration`) and `test:e2e:ui` (Playwright); add `tests/*` to the root `workspaces` and to the projects in the root `vitest.config.ts`; a workspace `turbo.json` whose `test:integration` inputs include the root `compose*.yaml`, `.dockerignore` and `apps/*/Dockerfile`
-- [ ] 1.2 Test "Triage waits for the model" (tests/system-e2e/src/compose-config.int.test.ts, reads `docker compose config --format json`)
-- [ ] 1.3 Test "Web waits for triage" (compose-config.int.test.ts)
-- [ ] 1.4 Test "Default model" (compose-config.int.test.ts)
-- [ ] 1.5 Test "Model from the environment" (compose-config.int.test.ts)
-- [ ] 1.6 Test "Models volume is shared across projects" (compose-config.int.test.ts)
-- [ ] 1.7 Test "Override leaves out the model containers" (compose-config.int.test.ts)
-- [ ] 1.8 Test "Override points the service at the host" (compose-config.int.test.ts)
-- [ ] 1.9 `compose.yaml`: `ollama` (`ollama/ollama`, healthcheck, models volume with a fixed `name:`), one-shot `ollama-pull` (`OLLAMA_MODEL`, default `qwen3:8b`), `triage` (HOST 0.0.0.0, `OLLAMA_BASE_URL=http://ollama:11434`, `DATABASE_PATH` in the runs volume, `/api/health` healthcheck, env from `.env` when present), `web`; host ports from `WEB_PORT` (8080) and `TRIAGE_PORT` (3000); `apps/triage/Dockerfile` (runs `npm start` with tsx), `apps/web/Dockerfile` (`vite build` served by nginx) with `apps/web/nginx.conf` (`/api` proxied to `triage:3000`, timeouts long enough for a run), `.dockerignore`; a Docker note in `.env.example`
-- [ ] 1.10 `compose.host-llm.yaml`: `ollama` and `ollama-pull` out of the default start, `triage.depends_on` reset, `OLLAMA_BASE_URL` defaulting to `http://host.docker.internal:11434` (with `host-gateway` for Linux)
+- [x] 1.1 Workspace `tests/system-e2e` (`@triage/system-e2e`): package.json with `typecheck`, `lint`, `test:integration` (Vitest project `system-e2e:integration`) and `test:e2e:ui` (Playwright); add `tests/*` to the root `workspaces` and to the projects in the root `vitest.config.ts`; a workspace `turbo.json` whose `test:integration` inputs include the root `compose*.yaml`, `.dockerignore` and `apps/*/Dockerfile`
+- [x] 1.2 Test "Triage waits for the model" (tests/system-e2e/src/compose-config.int.test.ts, reads `docker compose config --format json`)
+- [x] 1.3 Test "Web waits for triage" (compose-config.int.test.ts)
+- [x] 1.4 Test "Default model" (compose-config.int.test.ts)
+- [x] 1.5 Test "Model from the environment" (compose-config.int.test.ts)
+- [x] 1.6 Test "Models volume is shared across projects" (compose-config.int.test.ts)
+- [x] 1.7 Test "Override leaves out the model containers" (compose-config.int.test.ts)
+- [x] 1.8 Test "Override points the service at the host" (compose-config.int.test.ts)
+- [x] 1.9 `compose.yaml`: `ollama` (`ollama/ollama`, healthcheck, models volume with a fixed `name:`), one-shot `ollama-pull` (`OLLAMA_MODEL`, default `qwen3:8b`), `triage` (HOST 0.0.0.0, `OLLAMA_BASE_URL=http://ollama:11434`, `DATABASE_PATH` in the runs volume, `/api/health` healthcheck, env from `.env` when present), `web`; host ports from `WEB_PORT` (8080) and `TRIAGE_PORT` (3000); `apps/triage/Dockerfile` (runs `npm start` with tsx), `apps/web/Dockerfile` (`vite build` served by nginx) with `apps/web/nginx.conf` (`/api` proxied to `triage:3000`, timeouts long enough for a run), `.dockerignore`; a Docker note in `.env.example`
+- [x] 1.10 `compose.host-llm.yaml`: `ollama` and `ollama-pull` out of the default start, `triage.depends_on` reset, `OLLAMA_BASE_URL` defaulting to `http://host.docker.internal:11434` (with `host-gateway` for Linux)
 
 ## 2. System e2e and README
 

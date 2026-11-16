@@ -15,3 +15,7 @@
 - 2026-11-16 Compose ordering, model and override are checked by integration tests over `docker compose config` - why: they need the Docker CLI, so they belong in check:full, not npm run check; instead of: only the slow system e2e; by: agent (technical)
 - 2026-11-16 Host ports come from WEB_PORT (8080) and TRIAGE_PORT (3000) - why: the system e2e stack must not clash with a stack the user is running; instead of: fixed ports; by: agent (technical)
 - 2026-11-16 The system e2e teardown removes only its project's runs volume, never `down -v` - why: `down -v` would also delete the shared models volume and force a new download; by: agent (technical)
+- 2026-11-16 compose.yaml sets the project name `triage` - why: images, containers and volumes get the same names from any checkout folder; by: agent (technical)
+- 2026-11-16 The web image copies samples/ into the build - why: the web app imports samples/tickets.json, found when the first image build failed; by: agent (technical)
+- 2026-11-16 In compose.yaml and compose.host-llm.yaml the service's OLLAMA_BASE_URL, HOST, PORT and DATABASE_PATH are fixed, not taken from .env - why: .env copied from .env.example holds 127.0.0.1, which inside a container points at the container itself; instead of: interpolating OLLAMA_BASE_URL from .env; by: agent (technical)
+- 2026-11-16 Ollama image pinned to ollama/ollama:0.12.6 for now - why: pulling 0.40.16 (the host's version) failed with no space left on the Docker disk; to revisit once the user has given Docker more disk and memory; by: agent (technical)

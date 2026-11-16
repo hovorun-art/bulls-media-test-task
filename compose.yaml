@@ -1,0 +1,70 @@
+# The whole system with one command: docker compose up  ->  web UI on http://localhost:8080
+# Without the Ollama containers (native Ollama on the host, or Anthropic):
+#   docker compose -f compose.yaml -f compose.host-llm.yaml up
+name: triage
+
+services:
+  ollama:
+    image: ollama/ollama:0.12.6
+    volumes:
+      - models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  ollama-pull:
+    image: ollama/ollama:0.12.6
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${OLLAMA_MODEL:-qwen3:8b}"]
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  triage:
+    build:
+      context: .
+      dockerfile: apps/triage/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      DATABASE_PATH: /var/lib/triage/runs.sqlite
+    ports:
+      - "${TRIAGE_PORT:-3000}:3000"
+    volumes:
+      - runs:/var/lib/triage
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      triage:
+        condition: service_healthy
+
+volumes:
+  # A fixed name: every Compose project (the system e2e too) reuses the downloaded models.
+  models:
+    name: triage-ollama-models
+  runs:

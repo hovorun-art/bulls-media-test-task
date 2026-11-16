@@ -1,0 +1,14 @@
+# Everything except the Ollama containers: the service uses the Ollama running on the host
+# (fast on a Mac, where Docker has no GPU) or Anthropic when .env sets LLM_PROVIDER=anthropic.
+#   docker compose -f compose.yaml -f compose.host-llm.yaml up
+services:
+  ollama:
+    profiles: [ollama-in-docker]
+  ollama-pull:
+    profiles: [ollama-in-docker]
+  triage:
+    depends_on: !reset {}
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - host.docker.internal:host-gateway

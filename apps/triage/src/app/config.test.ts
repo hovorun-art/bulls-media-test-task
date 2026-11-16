@@ -19,21 +19,6 @@ describe('TriageConfigSchema', () => {
     );
   });
 
-  it('Old provider settings are ignored', () => {
-    const config = parse({
-      GOOGLE_API_KEY: 'test-key',
-      LLM_PROVIDER: 'ollama',
-      OLLAMA_MODEL: 'qwen3:8b',
-      ANTHROPIC_API_KEY: 'old',
-    });
-
-    expect(config).not.toHaveProperty('LLM_PROVIDER');
-    expect(config).toMatchObject({
-      GOOGLE_API_KEY: 'test-key',
-      GEMINI_MODEL: 'gemini-3.8-flash',
-    });
-  });
-
   it('applies the defaults', () => {
     expect(parse({})).toMatchObject({
       GEMINI_MODEL: 'gemini-3.8-flash',

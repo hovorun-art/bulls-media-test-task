@@ -13,6 +13,12 @@ function aModelOver(baseUrl: string, { maxAttempts, repairAttempts }: { maxAttem
   );
 }
 
+/** The parts of a generateContent request body the tests look at. */
+interface GenerateBody {
+  tools?: { functionDeclarations: { name: string }[] }[];
+  generationConfig?: { responseSchema?: { properties: Record<string, unknown> } };
+}
+
 /**
  * A local stand-in for the Gemini REST API: answers each POST generateContent with the next scripted reply.
  * A reply with `hold` never answers, like a model that is still thinking.
@@ -21,9 +27,12 @@ async function aGeminiStub(
   replies: { status: number; text?: string; functionCall?: { name: string; args: unknown }; hold?: boolean }[],
 ) {
   const requests: string[] = [];
-  const server = createServer((request, response) => {
+  const bodies: GenerateBody[] = [];
+  const server = createServer(async (request, response) => {
     requests.push(`${request.method} ${request.url}`);
-    request.resume();
+    let text = '';
+    for await (const chunk of request) text += chunk;
+    bodies.push(JSON.parse(text) as GenerateBody);
     const reply = replies.shift() ?? { status: 500 };
     if (reply.hold) return;
     if (reply.status !== 200) {
@@ -35,7 +44,7 @@ async function aGeminiStub(
     response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(body));
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  return { server, requests, baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
+  return { server, requests, bodies, baseUrl: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
 }
 
 const GENERATE = 'POST /v1beta/models/gemini-3.8-flash:generateContent';
@@ -64,6 +73,52 @@ describe('LangChainSupportModel over ChatGoogleGenerativeAI', () => {
 
     expect(classification).toEqual(CLASSIFICATION);
     expect(stub.requests).toEqual([GENERATE, GENERATE]);
+  });
+
+  it('asks Gemini for the classification schema', async () => {
+    const stub = await aGeminiStub([{ status: 200, text: JSON.stringify(CLASSIFICATION) }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    await model.classify({ ticket: { email: 'anna@example.com', subject: 'Order', body: 'Late' } });
+
+    expect(Object.keys(stub.bodies[0]?.generationConfig?.responseSchema?.properties ?? {}).sort()).toEqual([
+      'category',
+      'issueSummary',
+      'priority',
+    ]);
+  });
+
+  it('returns a decision with no refund order through the real client', async () => {
+    const decision = { action: 'reply', reasons: ['The order is on its way.'], citedArticles: ['shipping'], refundOrderId: null };
+    const stub = await aGeminiStub([{ status: 200, text: JSON.stringify(decision) }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    const answer = await model.decide({
+      ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late' },
+      classification: CLASSIFICATION,
+      observations: [],
+    });
+
+    expect(answer).toEqual(decision);
+  });
+
+  it('returns a reply draft through the real client', async () => {
+    const stub = await aGeminiStub([{ status: 200, text: JSON.stringify({ replyDraft: 'Your lamp ships tomorrow.' }) }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    const answer = await model.draft({
+      ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late' },
+      classification: CLASSIFICATION,
+      action: 'reply',
+      reasons: ['The order is on its way.'],
+      refund: null,
+      observations: [],
+    });
+
+    expect(answer).toEqual({ replyDraft: 'Your lamp ships tomorrow.' });
   });
 
   it('stops after the configured attempts when every call fails', async () => {
@@ -107,6 +162,20 @@ describe('LangChainSupportModel over ChatGoogleGenerativeAI', () => {
     });
 
     expect(next).toEqual({ step: { kind: 'tool', tool: 'get_order', args: { orderId: 'A-1001' } } });
+  });
+
+  it('offers Gemini the agent tools', async () => {
+    const stub = await aGeminiStub([{ status: 200, text: 'Nothing to look up.' }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    await model.nextStep({
+      ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late' },
+      classification: CLASSIFICATION,
+      observations: [],
+    });
+
+    expect(stub.bodies[0]?.tools?.[0]?.functionDeclarations.map((tool) => tool.name)).toContain('get_order');
   });
 
   it('Model call in flight is aborted at the deadline, without a retry', async () => {

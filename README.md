@@ -183,8 +183,7 @@ cp .env.example .env         # set GOOGLE_API_KEY; the other values have default
 npm run dev                  # service on :3000, web UI on http://localhost:5173
 ```
 
-Open http://localhost:5173, pick a sample ticket and press **Triage ticket**. One ticket takes
-a few seconds.
+Open http://localhost:5173, pick a sample ticket and press **Triage ticket**.
 
 The service checks the key and the model with the Gemini models API at start and refuses to
 start with a clear message when `GOOGLE_API_KEY` is missing or rejected, or the model is unknown.

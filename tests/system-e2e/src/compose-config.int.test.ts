@@ -70,8 +70,11 @@ describe('compose.yaml', () => {
     expect(config.services.triage.environment?.GEMINI_MODEL).toBe('gemini-3.5-flash-lite');
   });
 
-  it('Missing key stops compose', () => {
-    expect(() => renderConfig({ env: { GOOGLE_API_KEY: undefined } })).toThrow(/GOOGLE_API_KEY/);
+  it.each([
+    ['unset', undefined],
+    ['empty', ''],
+  ])('Missing key stops compose (%s)', (_case, key) => {
+    expect(() => renderConfig({ env: { GOOGLE_API_KEY: key } })).toThrow(/GOOGLE_API_KEY/);
   });
 
   it('Key reaches the triage service', () => {

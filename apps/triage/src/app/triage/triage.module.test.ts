@@ -5,25 +5,39 @@ import { join } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { PinoLogger, ZodConfigParser } from '@triage/service-kit';
 import { pino } from 'pino';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
 import { SUPPORT_MODEL, type SupportModel } from '../../domain/triage/support-model';
 import type { ModelReadiness } from '../../domain/triage/model-readiness';
 import { AppModule } from '../app.module';
 import { TriageConfigSchema } from '../config';
 
-/** Builds the app the way production does, with the real chat model from the config, and returns its model description. */
-async function describedModelFor(directory: string, env: Record<string, string>) {
+/**
+ * Builds the app the way production does, with the real Gemini clients from the config; the model
+ * factories are private to the module, so no lower level can reach them. `readiness` replaces the
+ * start check when given.
+ */
+async function anAppFor(directory: string, env: Record<string, string>, readiness?: ModelReadiness) {
   const { config } = new ZodConfigParser().parse({
     schema: TriageConfigSchema,
     env: { GOOGLE_API_KEY: 'test-key', DATABASE_PATH: join(directory, 'runs.sqlite'), ...env },
   });
   const logger = new PinoLogger({ pino: pino({ level: 'silent' }) });
+  return NestFactory.createApplicationContext(AppModule.forRoot({ config, logger, ports: { modelReadiness: readiness } }), {
+    logger: false,
+    abortOnError: false,
+  });
+}
+
+/** The app with a start check that passes. */
+async function aReadyAppFor(directory: string, env: Record<string, string>) {
   const readiness = mockDeep<ModelReadiness>();
   readiness.check.mockResolvedValueOnce(undefined);
-  const app = await NestFactory.createApplicationContext(AppModule.forRoot({ config, logger, ports: { modelReadiness: readiness } }), {
-    logger: false,
-  });
+  return anAppFor(directory, env, readiness);
+}
+
+async function describedModelFor(directory: string, env: Record<string, string>) {
+  const app = await aReadyAppFor(directory, env);
   try {
     return app.get<SupportModel>(SUPPORT_MODEL).describe();
   } finally {
@@ -39,6 +53,7 @@ describe('TriageModule', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     rmSync(directory, { recursive: true, force: true });
   });
 
@@ -55,5 +70,31 @@ describe('TriageModule', () => {
 
   it('Old provider settings are ignored', async () => {
     expect(await describedModelFor(directory, { LLM_PROVIDER: 'ollama' })).toEqual({ provider: 'gemini', name: 'gemini-3.8-flash' });
+  });
+
+  it('calls the configured Gemini model with the key', async () => {
+    const app = await aReadyAppFor(directory, { GEMINI_MODEL: 'gemini-3.5-flash-lite' });
+    const answer = { category: 'order_status', priority: 'normal', issueSummary: 'Where is A-1001.' };
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(answer) }] }, finishReason: 'STOP', index: 0 }] }),
+    );
+
+    await app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: { email: 'anna@example.com', subject: 'Order', body: 'Late' } });
+    await app.close();
+
+    const [url, init] = fetch.mock.calls[0] ?? [];
+    expect(String(url)).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
+    expect(new Headers(init?.headers).get('x-goog-api-key')).toBe('test-key');
+  });
+
+  it('checks the configured Gemini model with the key at start', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('{}', { status: 404 }));
+
+    await expect(anAppFor(directory, { GEMINI_MODEL: 'gemini-unknown' })).rejects.toThrow(
+      'the Gemini API does not know the model gemini-unknown',
+    );
+    expect(fetch).toHaveBeenCalledWith('https://generativelanguage.googleapis.com/v1beta/models/gemini-unknown', {
+      headers: { 'x-goog-api-key': 'test-key' },
+    });
   });
 });

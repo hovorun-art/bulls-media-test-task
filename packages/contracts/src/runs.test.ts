@@ -57,6 +57,7 @@ describe('RunSchema', () => {
     ['an id that is not a UUID', 'id', { id: 'run-1' }],
     ['a creation time that is not ISO', 'createdAt', { createdAt: '13.11.2026' }],
     ['a ticket without a body', 'ticket.body', { ticket: { email: 'anna@example.com', subject: 'Order' } }],
+    ['a model without a provider', 'model.provider', { model: { name: 'gemini-3.8-flash' } }],
   ])('rejects a run with %s', (_case, field, overrides) => {
     expect(issuePaths(RunSchema.safeParse(aRun(overrides)))).toEqual([field]);
   });

@@ -79,35 +79,26 @@ describe('TriageResult', () => {
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows the raised flags only', () => {
-    const flags = {
-      injectionSuspected: true,
-      toolLimitReached: false,
-      policyOverride: true,
-      modelFailure: false,
-      deadlineReached: false,
-    };
+  it.each([
+    ['injectionSuspected', 'Possible prompt injection'],
+    ['toolLimitReached', 'Tool call limit reached'],
+    ['policyOverride', 'Policy overrode the model'],
+    ['modelFailure', 'Model failure'],
+    ['deadlineReached', 'Run deadline reached'],
+  ])('shows the flag %s as "%s"', (flag, label) => {
+    const flags = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
 
-    render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
+    render(<TriageResult run={aRun({ result: { action: 'escalate', flags: { ...flags, [flag]: true } } })} />);
 
-    expect(screen.getByText('Possible prompt injection')).toBeInTheDocument();
-    expect(screen.getByText('Policy overrode the model')).toBeInTheDocument();
-    expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
-    expect(screen.queryByText('Tool call limit reached')).not.toBeInTheDocument();
-    expect(screen.queryByText('Run deadline reached')).not.toBeInTheDocument();
+    expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows the deadline flag', () => {
-    const flags = {
-      injectionSuspected: false,
-      toolLimitReached: false,
-      policyOverride: false,
-      modelFailure: false,
-      deadlineReached: true,
-    };
+  it('shows no flag when none is raised', () => {
+    const flags = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
 
     render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
 
-    expect(screen.getByText('Run deadline reached')).toBeInTheDocument();
+    expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Possible prompt injection')).not.toBeInTheDocument();
   });
 });

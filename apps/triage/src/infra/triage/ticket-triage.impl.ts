@@ -64,7 +64,7 @@ export class TicketTriageImpl implements TicketTriage {
   async closeInterrupted(): Promise<CloseInterruptedTicketTriageResponse> {
     const { runs } = await this.d.runs.listRunning();
     for (const run of runs) {
-      await this.store({ ...run, status: 'done', result: this.escalation('Service restarted during the run') });
+      await this.store({ ...run, status: 'done', result: this.d.agent.escalate({ reason: 'Service restarted during the run' }).result });
     }
     return { closed: runs.map((run) => run.id) };
   }
@@ -87,7 +87,7 @@ export class TicketTriageImpl implements TicketTriage {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       try {
-        await this.store({ ...run, trace, status: 'done', result: this.escalation(reason) });
+        await this.store({ ...run, trace, status: 'done', result: this.d.agent.escalate({ reason }).result });
       } catch (storing) {
         const message = storing instanceof Error ? storing.message : String(storing);
         this.d.logger.error({ message: 'run could not be ended', context: { runId: run.id, error: message } });
@@ -99,21 +99,6 @@ export class TicketTriageImpl implements TicketTriage {
   private async store(run: Run): Promise<void> {
     await this.d.runs.save({ run });
     this.d.events.publish({ runId: run.id, event: { type: 'run', run } });
-  }
-
-  /** The result of a run the agent could not finish. */
-  private escalation(reason: string): TriageResult {
-    return {
-      category: 'other',
-      priority: 'normal',
-      action: 'escalate',
-      replyDraft: null,
-      citedArticles: [],
-      reasons: [reason],
-      refund: null,
-      flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false },
-      summary: `other, normal priority. Action: escalate. Why: ${reason}.`,
-    };
   }
 
   private logDecision(run: Run, result: TriageResult): void {

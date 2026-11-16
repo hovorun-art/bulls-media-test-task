@@ -114,7 +114,7 @@ describe('TicketForm', () => {
     expect(await screen.findByRole('button', { name: 'Sending…' })).toBeDisabled();
   });
 
-  it('Submitted ticket opens its run at once', async () => {
+  it('hands the accepted run id to the page', async () => {
     const id = randomUUID();
     let sent: unknown;
     server.use(

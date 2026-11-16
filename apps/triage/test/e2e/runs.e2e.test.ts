@@ -14,12 +14,15 @@ describe('GET /api/runs', () => {
 
   it('Triaged ticket can be opened by its run id', async () => {
     service.scriptReply();
-    const triaged = await service.triage(aTicketAbout('Lamp'));
+    const id = await service.startTriage(aTicketAbout('Lamp'));
+    await service.waitForRun(id, (run) => run.status === 'done');
 
-    const response = await service.getRun(triaged.id);
+    const response = await service.getRun(id);
 
     expect(response.status).toBe(200);
-    expect(RunSchema.parse(await response.json())).toEqual(triaged);
+    const run = RunSchema.parse(await response.json());
+    expect(run).toMatchObject({ id, status: 'done', ticket: aTicketAbout('Lamp'), result: { action: 'reply' } });
+    expect(run.trace.map((entry) => entry.step)).toEqual(['guard', 'classify', 'research', 'decide', 'policy', 'draft', 'validate']);
   });
 
   it('Running run shows the trace so far', async () => {
@@ -34,8 +37,7 @@ describe('GET /api/runs', () => {
   });
 
   it('Running run is listed with its status', async () => {
-    service.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
-    service.model.classify.mockReturnValueOnce(new Promise(() => {}));
+    service.scriptModelNeverAnswers();
     const id = await service.startTriage(aTicketAbout('Lamp'));
 
     const { runs } = await service.listRuns();
@@ -68,7 +70,7 @@ describe('GET /api/runs', () => {
     expect(runs.map((run) => run.id)).toEqual([second.id]);
   });
 
-  it.each(['0', '101', 'abc'])('rejects limit=%s', async (limit) => {
+  it.each(['0', '101', '1.5', 'abc'])('rejects limit=%s', async (limit) => {
     const response = await service.get(`/api/runs?limit=${limit}`);
 
     const error = await service.errorOf(response, 400);
@@ -93,6 +95,12 @@ describe('GET /api/runs', () => {
     });
   });
 
+  it('answers a run id that is not a UUID with 404', async () => {
+    const response = await service.getRun('not-a-uuid');
+
+    expect((await service.errorOf(response, 404)).code).toBe('RUN_NOT_FOUND');
+  });
+
   it('Running run is closed on start', async () => {
     const left = aStoredRun({ status: 'running' });
     await service.store(left);
@@ -107,8 +115,8 @@ describe('GET /api/runs', () => {
   });
 
   it('Paused run is kept on start', async () => {
-    const paused = aStoredRun({ status: 'awaiting_approval' });
-    await service.store(paused);
+    service.scriptRefundDecision('A-1002');
+    const paused = await service.triage(aBaseTicket({ orderId: 'A-1002', body: 'Refund please' }), 'awaiting_approval');
 
     await service.restart();
 

@@ -39,6 +39,12 @@ const aRun = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const aStepEvent = (index: number) => ({
+  type: 'step',
+  index,
+  entry: { step: 'classify', tool: null, input: {}, output: {}, error: null, startedAt: '2026-11-13T12:00:00.000Z', durationMs: 5 },
+});
+
 const issuePaths = (result: { error?: { issues: { path: PropertyKey[] }[] } }) =>
   result.error?.issues.map((issue) => issue.path.join('.'));
 
@@ -48,10 +54,10 @@ describe('RunSchema', () => {
   });
 
   it.each([
-    ['id that is not a UUID', 'id', { id: 'run-1' }],
-    ['creation time that is not ISO', 'createdAt', { createdAt: '13.11.2026' }],
-    ['ticket without a body', 'ticket.body', { ticket: { email: 'anna@example.com', subject: 'Order' } }],
-  ])('rejects a run with an %s', (_case, field, overrides) => {
+    ['an id that is not a UUID', 'id', { id: 'run-1' }],
+    ['a creation time that is not ISO', 'createdAt', { createdAt: '13.11.2026' }],
+    ['a ticket without a body', 'ticket.body', { ticket: { email: 'anna@example.com', subject: 'Order' } }],
+  ])('rejects a run with %s', (_case, field, overrides) => {
     expect(issuePaths(RunSchema.safeParse(aRun(overrides)))).toEqual([field]);
   });
 
@@ -63,8 +69,8 @@ describe('RunSchema', () => {
     expect(issuePaths(RunSchema.safeParse(aRun({ status: 'done', result: null })))).toEqual(['result']);
   });
 
-  it('rejects a running run with a result', () => {
-    expect(issuePaths(RunSchema.safeParse(aRun({ status: 'running' })))).toEqual(['result']);
+  it.each(['running', 'awaiting_approval'])('rejects a %s run with a result', (status) => {
+    expect(issuePaths(RunSchema.safeParse(aRun({ status })))).toEqual(['result']);
   });
 });
 
@@ -74,10 +80,10 @@ describe('RunSummarySchema', () => {
   });
 
   it.each([
-    ['id that is not a UUID', 'id', { id: 'run-1' }],
-    ['unknown action', 'action', { action: 'ignore' }],
-    ['unknown status', 'status', { status: 'paused' }],
-  ])('rejects a summary with an %s', (_case, field, overrides) => {
+    ['an id that is not a UUID', 'id', { id: 'run-1' }],
+    ['an unknown action', 'action', { action: 'ignore' }],
+    ['an unknown status', 'status', { status: 'paused' }],
+  ])('rejects a summary with %s', (_case, field, overrides) => {
     expect(issuePaths(RunSummarySchema.safeParse(aRunSummary(overrides)))).toEqual([field]);
   });
 
@@ -91,8 +97,11 @@ describe('ApprovalRequestSchema', () => {
     expect(ApprovalRequestSchema.safeParse({ decision }).success).toBe(true);
   });
 
-  it('rejects an unknown decision', () => {
-    expect(issuePaths(ApprovalRequestSchema.safeParse({ decision: 'maybe' }))).toEqual(['decision']);
+  it.each([
+    ['an unknown decision', { decision: 'maybe' }],
+    ['a missing decision', {}],
+  ])('rejects %s', (_case, body) => {
+    expect(issuePaths(ApprovalRequestSchema.safeParse(body))).toEqual(['decision']);
   });
 });
 
@@ -101,20 +110,23 @@ describe('RunEventSchema', () => {
     expect(RunEventSchema.safeParse({ type: 'run', run: aRun() }).success).toBe(true);
   });
 
-  it('accepts a finished step with its place in the trace', () => {
-    const entry = { step: 'classify', tool: null, input: {}, output: {}, error: null, startedAt: '2026-11-13T12:00:00.000Z', durationMs: 5 };
-
-    expect(RunEventSchema.safeParse({ type: 'step', index: 1, entry }).success).toBe(true);
+  it('accepts the first step of the trace', () => {
+    expect(RunEventSchema.safeParse(aStepEvent(0)).success).toBe(true);
   });
 
   it('rejects an unknown kind of event', () => {
     expect(issuePaths(RunEventSchema.safeParse({ type: 'progress', run: aRun() }))).toEqual(['type']);
   });
 
-  it('rejects a step with a negative index', () => {
-    const entry = { step: 'classify', tool: null, input: {}, output: {}, error: null, startedAt: '2026-11-13T12:00:00.000Z', durationMs: 5 };
+  it.each([
+    ['a negative index', -1],
+    ['a fractional index', 1.5],
+  ])('rejects a step with %s', (_case, index) => {
+    expect(issuePaths(RunEventSchema.safeParse(aStepEvent(index)))).toEqual(['index']);
+  });
 
-    expect(issuePaths(RunEventSchema.safeParse({ type: 'step', index: -1, entry }))).toEqual(['index']);
+  it('rejects a run event whose run breaks the run rules', () => {
+    expect(issuePaths(RunEventSchema.safeParse({ type: 'run', run: aRun({ status: 'done', result: null }) }))).toEqual(['run.result']);
   });
 });
 

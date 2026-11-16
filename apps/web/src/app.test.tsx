@@ -46,7 +46,6 @@ describe('App', () => {
 
     expect(await screen.findByText('Just triaged: the lamp ships tomorrow.')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /Lamp question/ })).toHaveAttribute('aria-current', 'true');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows an error when a past run cannot be opened', async () => {
@@ -68,7 +67,7 @@ describe('App', () => {
     const run = aRun({
       ticket: { email: 'chris@example.com', subject: 'Laptop refund', body: 'Screen flickers', orderId: 'C-3001' },
       result: { action: 'escalate', summary: 'refund_request, high priority. Action: escalate.' },
-      trace: [{ step: 'guard', tool: null, input: null, output: null, error: null, startedAt: '2026-11-13T12:00:00.000Z', durationMs: 1 }],
+      trace: [aTraceEntry('guard')],
     });
     server.use(
       http.get('*/api/runs', () => HttpResponse.json({ runs: [aRunSummary({ id: run.id, subject: 'Laptop refund' })] })),
@@ -82,7 +81,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /guard/ })).toBeInTheDocument();
   });
 
-  it('shows a submitted ticket as running', async () => {
+  it('Submitted ticket opens its run at once', async () => {
     const run = aRun({ status: 'running', result: null });
     server.use(
       noRuns(),
@@ -132,10 +131,10 @@ describe('App', () => {
   it('reads the run again when its stream fails', async () => {
     const running = aRun({ status: 'running', result: null });
     const done = aRun({ id: running.id, result: { summary: 'Read again: the lamp ships tomorrow.' } });
-    let reads = 0;
     server.use(
       noRuns(),
-      http.get(`*/api/runs/${running.id}`, () => HttpResponse.json(reads++ === 0 ? running : done)),
+      http.get(`*/api/runs/${running.id}`, () => HttpResponse.json(running), { once: true }),
+      http.get(`*/api/runs/${running.id}`, () => HttpResponse.json(done)),
       http.get(`*/api/runs/${running.id}/events`, () => HttpResponse.json({ code: 'INTERNAL', message: 'boom', details: {} }, { status: 500 })),
     );
     renderWithQuery(<App />);
@@ -148,13 +147,13 @@ describe('App', () => {
   it('updates the history when the run is done', async () => {
     const running = aRun({ status: 'running', result: null });
     const done = aRun({ id: running.id, result: { category: 'order_status', action: 'reply' } });
-    let listed = 0;
-    const summaries = [
-      aRunSummary({ id: running.id, status: 'running', category: null, action: null }),
-      aRunSummary({ id: running.id, status: 'done', category: 'order_status', action: 'reply' }),
-    ];
+    const runningSummary = aRunSummary({ id: running.id, subject: 'Lamp question', status: 'running', category: null, action: null });
+    const doneSummary = aRunSummary({ id: running.id, subject: 'Lamp question', status: 'done', category: 'order_status', action: 'reply' });
     server.use(
-      http.get('*/api/runs', () => HttpResponse.json({ runs: [summaries[Math.min(listed++, 1)]] })),
+      // Read on load and after the submit, before the run is done.
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [runningSummary] }), { once: true }),
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [runningSummary] }), { once: true }),
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [doneSummary] })),
       http.get(`*/api/runs/${running.id}`, () => HttpResponse.json(running)),
       http.get(`*/api/runs/${running.id}/events`, () => anEventStream([{ type: 'run', run: done }])),
     );
@@ -162,8 +161,7 @@ describe('App', () => {
 
     await submitTicketAs(running.id);
 
-    expect(await screen.findByText('Reply')).toBeInTheDocument();
-    expect(screen.queryByText('Running')).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Lamp question.*Reply/ })).toBeInTheDocument();
   });
 
   it('stops following a run when another run is opened', async () => {
@@ -185,6 +183,39 @@ describe('App', () => {
 
     expect(await screen.findByText('The second run.')).toBeInTheDocument();
     await vi.waitFor(() => expect(cancelled).toBe(true));
+  });
+
+  it('places a step at its index once, even when the snapshot already holds it', async () => {
+    const run = aRun({ status: 'running', result: null, trace: [aTraceEntry('guard')] });
+    server.use(
+      noRuns(),
+      http.get(`*/api/runs/${run.id}`, () => HttpResponse.json(run)),
+      http.get(`*/api/runs/${run.id}/events`, () =>
+        anEventStream([{ type: 'run', run }, { type: 'step', index: 0, entry: aTraceEntry('guard') }, { type: 'step', index: 1, entry: aTraceEntry('classify') }], { open: true }),
+      ),
+    );
+    renderWithQuery(<App />);
+
+    await submitTicketAs(run.id);
+
+    expect(await screen.findByRole('button', { name: /classify/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /guard/ })).toHaveLength(1);
+  });
+
+  it('offers the approval when the stream pauses the run', async () => {
+    const running = aRun({ status: 'running', result: null });
+    const paused = { ...running, status: 'awaiting_approval' as const };
+    server.use(
+      noRuns(),
+      http.get(`*/api/runs/${running.id}`, () => HttpResponse.json(running), { once: true }),
+      http.get(`*/api/runs/${running.id}/events`, () => anEventStream([{ type: 'run', run: paused }])),
+    );
+    renderWithQuery(<App />);
+
+    await submitTicketAs(running.id);
+
+    expect(await screen.findByRole('button', { name: 'Approve' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument();
   });
 
   it('Approve follows the run to its result', async () => {

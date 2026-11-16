@@ -57,5 +57,6 @@ describe('StartupChecks', () => {
     await checks.onApplicationBootstrap();
 
     expect(logger.info).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

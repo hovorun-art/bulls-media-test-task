@@ -57,7 +57,7 @@ describe('TicketSchema', () => {
   });
 
   it('accepts an order id of 32 letters, digits and dashes', () => {
-    const ticket = aTicket({ orderId: 'A-1002-'.padEnd(32, '9') });
+    const ticket = aTicket({ orderId: 'A-1002-9999999999999999999999999' });
 
     expect(TicketSchema.safeParse(ticket).success).toBe(true);
   });
@@ -103,17 +103,17 @@ describe('TriageResultSchema', () => {
   });
 
   it.each([
-    ['action outside the closed list', 'action', { action: 'refund_now' }],
-    ['unknown category', 'category', { category: 'billing' }],
-    ['unknown priority', 'priority', { priority: 'critical' }],
-    ['negative refund amount', 'refund.amount', { refund: { orderId: 'A-1', amount: -1, currency: 'USD' } }],
+    ['an action outside the closed list', 'action', { action: 'refund_now' }],
+    ['an unknown category', 'category', { category: 'billing' }],
+    ['an unknown priority', 'priority', { priority: 'critical' }],
+    ['a negative refund amount', 'refund.amount', { refund: { orderId: 'A-1', amount: -1, currency: 'USD' } }],
     ['missing flags', 'flags', { flags: undefined }],
     [
       'flags without the deadline flag',
       'flags.deadlineReached',
       { flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false } },
     ],
-  ])('rejects an %s', (_case, field, overrides) => {
+  ])('rejects %s', (_case, field, overrides) => {
     expect(issuePaths(TriageResultSchema.safeParse(aTriageResult(overrides)))).toEqual([field]);
   });
 });

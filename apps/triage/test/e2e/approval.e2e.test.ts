@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { RunSchema } from '@triage/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { aStoredRun, aTicket, TriageUnderTest } from './triage-under-test';
+import { aTicket, TriageUnderTest } from './triage-under-test';
 
 const REFUND_TICKET = aTicket({ email: 'anna@example.com', orderId: 'A-1002', body: 'Refund please' });
 
@@ -47,8 +47,13 @@ describe('POST /api/runs/:id/approval', () => {
       service.decide(paused.id, { decision: 'approve' }),
     ]);
 
-    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
-    await service.waitForRun(paused.id, (run) => run.status === 'done');
+    expect(responses.map((response) => response.status)).toEqual(expect.arrayContaining([200, 409]));
+    const refused = responses.find((response) => response.status === 409);
+    expect((await service.errorOf(refused ?? responses[0], 409)).code).toBe('RUN_NOT_AWAITING_APPROVAL');
+    const run = await service.waitForRun(paused.id, (stored) => stored.status === 'done');
+    expect(run.result?.action).toBe('propose_refund');
+    expect(run.trace.filter((entry) => entry.step === 'approval')).toHaveLength(1);
+    expect(service.model.draft).toHaveBeenCalledTimes(1);
   });
 
   it('Second approval is refused', async () => {
@@ -68,12 +73,13 @@ describe('POST /api/runs/:id/approval', () => {
   });
 
   it('Approval of a running run is refused', async () => {
-    const running = aStoredRun({ status: 'running' });
-    await service.store(running);
+    service.scriptModelNeverAnswers();
+    const id = await service.startTriage(REFUND_TICKET);
 
-    const response = await service.decide(running.id, { decision: 'approve' });
+    const response = await service.decide(id, { decision: 'approve' });
 
     expect((await service.errorOf(response, 409)).code).toBe('RUN_NOT_AWAITING_APPROVAL');
+    expect(RunSchema.parse(await (await service.getRun(id)).json())).toMatchObject({ status: 'running', trace: [{ step: 'guard' }] });
   });
 
   it('Approval of an unknown run is refused', async () => {
@@ -91,18 +97,6 @@ describe('POST /api/runs/:id/approval', () => {
     });
   });
 
-  it('Stream closes when the run awaits approval', async () => {
-    const { release } = service.scriptRefundDecision('A-1002', { held: true });
-    const id = await service.startTriage(REFUND_TICKET);
-    await service.waitForRun(id, (run) => run.trace.length === 2);
-
-    const { events, closed } = await service.followEvents(id, { onFirstEvent: release });
-
-    expect(closed).toBe(true);
-    expect(events[0]).toMatchObject({ type: 'run', run: { status: 'running' } });
-    expect(events.at(-1)).toMatchObject({ type: 'run', run: { status: 'awaiting_approval' } });
-  });
-
   it('Paused run survives a restart', async () => {
     service.scriptRefundDecision('A-1002');
     const paused = await service.triage(REFUND_TICKET, 'awaiting_approval');
@@ -111,6 +105,6 @@ describe('POST /api/runs/:id/approval', () => {
     await service.decide(paused.id, { decision: 'approve' });
 
     const run = await service.waitForRun(paused.id, (stored) => stored.status === 'done');
-    expect(run.result).toMatchObject({ action: 'propose_refund', refund: { orderId: 'A-1002', amount: 89 } });
+    expect(run.result).toMatchObject({ action: 'propose_refund', refund: { orderId: 'A-1002', amount: 89, currency: 'USD' } });
   });
 });

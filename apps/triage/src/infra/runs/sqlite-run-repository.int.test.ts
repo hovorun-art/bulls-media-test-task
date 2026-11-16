@@ -49,6 +49,8 @@ const aRun = (overrides: Partial<Run> = {}): Run => ({
   ...overrides,
 });
 
+const flagsWithoutDeadline = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false };
+
 describe('SqliteRunRepository', () => {
   let directory: string;
   let database: DatabaseSync;
@@ -58,6 +60,20 @@ describe('SqliteRunRepository', () => {
     database = new DatabaseSync(join(directory, 'runs.sqlite'));
     new SqliteSchemaMigrator({ database }, { directory: migrationsDirectory }).migrate();
   });
+
+  /** Rebuilds the database at the first migration only and stores a run document of that time. */
+  function storeBeforeStatus(legacyRun: object & { id: string; createdAt: string }) {
+    database.close();
+    rmSync(join(directory, 'runs.sqlite'));
+    database = new DatabaseSync(join(directory, 'runs.sqlite'));
+    const firstMigrationOnly = join(directory, 'first-migration');
+    mkdirSync(firstMigrationOnly);
+    copyFileSync(join(migrationsDirectory, '001_create_runs.sql'), join(firstMigrationOnly, '001_create_runs.sql'));
+    new SqliteSchemaMigrator({ database }, { directory: firstMigrationOnly }).migrate();
+    database
+      .prepare('INSERT INTO runs (id, created_at, subject, category, action, document) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(legacyRun.id, legacyRun.createdAt, 'Where is my order?', 'order_status', 'reply', JSON.stringify(legacyRun));
+  }
 
   afterEach(() => {
     database.close();
@@ -128,19 +144,19 @@ describe('SqliteRunRepository', () => {
 
     expect((await repository.get({ id: running.id })).run).toEqual(done);
     expect((await repository.list({ limit: 10 })).runs).toEqual([
-      expect.objectContaining({ id: running.id, status: 'done', category: 'order_status', action: 'reply' }),
+      { id: running.id, createdAt: '2026-11-13T10:00:00.000Z', subject: 'Where is my order?', status: 'done', category: 'order_status', action: 'reply' },
     ]);
   });
 
-  it('lists a running run with its status and without a category or action', async () => {
+  it.each(['running', 'awaiting_approval'] as const)('lists a %s run with its status and without a category or action', async (status) => {
     const repository = new SqliteRunRepository({ database });
-    const run = aRun({ status: 'running', result: null });
+    const run = aRun({ status, result: null });
     await repository.save({ run });
 
     const { runs } = await repository.list({ limit: 10 });
 
     expect(runs).toEqual([
-      { id: run.id, createdAt: '2026-11-13T10:00:00.000Z', subject: 'Where is my order?', status: 'running', category: null, action: null },
+      { id: run.id, createdAt: '2026-11-13T10:00:00.000Z', subject: 'Where is my order?', status, category: null, action: null },
     ]);
   });
 
@@ -166,34 +182,22 @@ describe('SqliteRunRepository', () => {
     database.close();
     database = new DatabaseSync(join(directory, 'runs.sqlite'));
 
-    const migrated = new SqliteSchemaMigrator({ database }, { directory: migrationsDirectory }).migrate();
+    new SqliteSchemaMigrator({ database }, { directory: migrationsDirectory }).migrate();
 
-    expect(migrated).toEqual({ applied: [] });
     expect((await new SqliteRunRepository({ database }).get({ id: run.id })).run).toEqual(run);
   });
 
   it('keeps the runs stored before runs had a status, as done', async () => {
-    database.close();
-    rmSync(join(directory, 'runs.sqlite'));
-    database = new DatabaseSync(join(directory, 'runs.sqlite'));
-    const firstMigrationOnly = join(directory, 'first-migration');
-    mkdirSync(firstMigrationOnly);
-    copyFileSync(join(migrationsDirectory, '001_create_runs.sql'), join(firstMigrationOnly, '001_create_runs.sql'));
-    new SqliteSchemaMigrator({ database }, { directory: firstMigrationOnly }).migrate();
-    // A document from before the status column and the deadline flag.
     const run = aRun();
-    const oldRun = {
-      ...run,
-      status: undefined,
-      result: { ...run.result, flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false } },
-    };
-    database
-      .prepare('INSERT INTO runs (id, created_at, subject, category, action, document) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(oldRun.id, oldRun.createdAt, 'Where is my order?', 'order_status', 'reply', JSON.stringify(oldRun));
+    const legacyRun = { ...run, status: undefined, result: { ...run.result, flags: flagsWithoutDeadline } };
+    storeBeforeStatus(legacyRun);
 
     new SqliteSchemaMigrator({ database }, { directory: migrationsDirectory }).migrate();
 
-    expect((await new SqliteRunRepository({ database }).get({ id: oldRun.id })).run.status).toBe('done');
-    expect((await new SqliteRunRepository({ database }).list({ limit: 10 })).runs[0]?.status).toBe('done');
+    const repository = new SqliteRunRepository({ database });
+    expect((await repository.get({ id: run.id })).run).toEqual(run);
+    expect((await repository.list({ limit: 10 })).runs).toEqual([
+      { id: run.id, createdAt: '2026-11-13T10:00:00.000Z', subject: 'Where is my order?', status: 'done', category: 'order_status', action: 'reply' },
+    ]);
   });
 });

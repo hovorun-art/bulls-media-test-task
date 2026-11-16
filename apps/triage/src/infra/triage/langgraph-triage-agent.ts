@@ -23,6 +23,8 @@ import type {
 import type {
   ResumeTriageAgentRequest,
   ResumeTriageAgentResponse,
+  EscalateTriageAgentRequest,
+  EscalateTriageAgentResponse,
   RunTriageAgentRequest,
   RunTriageAgentResponse,
   TriageAgent,
@@ -47,6 +49,8 @@ interface RunSession {
   startedAt: number;
   /** Agent time the run spent before this invocation (before the approval pause). */
   spentMs: number;
+  /** A step was stopped by the deadline. */
+  stoppedAtDeadline: boolean;
 }
 
 /**
@@ -163,7 +167,7 @@ export class LangGraphTriageAgent implements TriageAgent {
   ): Promise<TriageAgentOutcome> {
     const deadline = new AbortController();
     const timer = setTimeout(() => deadline.abort(), this.p.deadlineMs - spentMs);
-    this.sessions.set(runId, { signal: deadline.signal, onStep, startedAt: this.d.clock.now().instant.getTime(), spentMs });
+    this.sessions.set(runId, { signal: deadline.signal, onStep, startedAt: this.d.clock.now().instant.getTime(), spentMs, stoppedAtDeadline: false });
     try {
       const final = await start({ ...this.threadOf(runId), recursionLimit: 2 * this.p.maxToolCalls + 20 });
       const paused = (await this.graph.getState(this.threadOf(runId))).next.length > 0;
@@ -377,7 +381,7 @@ export class LangGraphTriageAgent implements TriageAgent {
   private async buildResult(state: State): Promise<TriageResult> {
     const classification = state.classification ?? { category: 'other', priority: 'normal', issueSummary: '' };
     const decision = state.failure ? this.escalation([state.failure], false) : this.required(state.decision);
-    const deadlineReached = state.failure === this.deadlineReason();
+    const deadlineReached = this.session(state.runId).stoppedAtDeadline;
     const { ids: citedArticles } = await this.d.knowledgeBase.filterKnown({ ids: decision.citedArticles });
     const result: TriageResult = {
       category: classification.category,
@@ -397,6 +401,21 @@ export class LangGraphTriageAgent implements TriageAgent {
       summary: '',
     };
     return { ...result, summary: this.summarize(result, classification.issueSummary) };
+  }
+
+  escalate(req: EscalateTriageAgentRequest): EscalateTriageAgentResponse {
+    const result: TriageResult = {
+      category: 'other',
+      priority: 'normal',
+      action: 'escalate',
+      replyDraft: null,
+      citedArticles: [],
+      reasons: [req.reason],
+      refund: null,
+      flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false },
+      summary: '',
+    };
+    return { result: { ...result, summary: this.summarize(result, '') } };
   }
 
   /** A deterministic one-paragraph summary for the human agent. */
@@ -438,7 +457,8 @@ export class LangGraphTriageAgent implements TriageAgent {
       const result = Promise.resolve(work(session.signal));
       output = bounded ? await Promise.race([this.whenAborted(session.signal), result]) : await result;
     } catch (caught) {
-      error = bounded && session.signal.aborted ? this.deadlineReason() : caught instanceof Error ? caught.message : String(caught);
+      session.stoppedAtDeadline = bounded && session.signal.aborted;
+      error = session.stoppedAtDeadline ? this.deadlineReason() : caught instanceof Error ? caught.message : String(caught);
     }
     const entry: TraceEntry = {
       step,

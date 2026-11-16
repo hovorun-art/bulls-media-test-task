@@ -24,6 +24,14 @@ export interface ResumeTriageAgentRequest {
 
 export type ResumeTriageAgentResponse = TriageAgentOutcome;
 
+export interface EscalateTriageAgentRequest {
+  reason: string;
+}
+
+export interface EscalateTriageAgentResponse {
+  result: TriageResult;
+}
+
 /**
  * The multi-step agent: never throws for model failures, it escalates instead. A refund it would
  * propose pauses the run until `resume` brings a person's decision; the pause survives a restart.
@@ -31,6 +39,8 @@ export type ResumeTriageAgentResponse = TriageAgentOutcome;
 export interface TriageAgent {
   run(req: RunTriageAgentRequest): Promise<RunTriageAgentResponse>;
   resume(req: ResumeTriageAgentRequest): Promise<ResumeTriageAgentResponse>;
+  /** The result of a run that could not finish (an unexpected error, a restart), escalated for the reason. */
+  escalate(req: EscalateTriageAgentRequest): EscalateTriageAgentResponse;
 }
 
 export const TRIAGE_AGENT = Symbol('TriageAgent');

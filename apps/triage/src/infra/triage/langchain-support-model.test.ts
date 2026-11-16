@@ -40,7 +40,7 @@ describe('LangChainSupportModel', () => {
     const classification = await aModel(chatModel).classify({ ticket: TICKET });
 
     expect(classification).toEqual(CLASSIFICATION);
-    const retryMessages = runnables[1]?.invoke.mock.calls[0]?.[0] as BaseMessage[];
+    const retryMessages = messagesSentTo(runnables[1]);
     expect(retryMessages.at(-1)).toBeInstanceOf(HumanMessage);
     expect(retryMessages.at(-1)?.content).toMatch(/^Your previous answer was not valid: category/);
   });

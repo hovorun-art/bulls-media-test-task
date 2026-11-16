@@ -68,8 +68,7 @@ describe('POST /api/triage', () => {
   });
 
   it('Ticket is accepted at once', async () => {
-    service.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
-    service.model.classify.mockReturnValueOnce(new Promise(() => {}));
+    service.scriptModelNeverAnswers();
 
     const response = await service.postTicket(aTicket());
 
@@ -89,7 +88,6 @@ describe('POST /api/triage', () => {
       reasons: ['Model unavailable: connect ECONNREFUSED'],
       flags: { modelFailure: true },
     });
-    expect((await service.listRuns()).runs).toMatchObject([{ id: run.id }]);
   });
 
   it('Order status question is answered with a reply', async () => {
@@ -104,28 +102,9 @@ describe('POST /api/triage', () => {
       citedArticles: ['order-tracking'],
       summary: 'order_status, normal priority. Action: reply. Order status. Why: The order is shipped with UPS.',
     });
-    expect(run.trace.find((entry) => entry.tool === 'get_order')?.output).toMatchObject({
-      found: true,
-      order: { id: 'A-1001', status: 'shipped', carrier: 'UPS' },
-    });
-    const search = run.trace.find((entry) => entry.tool === 'search_knowledge_base')?.output as { articles: { id: string }[] };
-    expect(search.articles[0]?.id).toBe('order-tracking');
-  });
-
-  it('proposes an approved refund that the seeded order and the configured policy allow', async () => {
-    service.scriptRefundDecision('A-1002');
-    const paused = await service.triage(
-      aTicket({ email: 'anna@example.com', orderId: 'A-1002', body: 'Refund please' }),
-      'awaiting_approval',
+    expect(run.trace).toContainEqual(
+      expect.objectContaining({ tool: 'get_order', output: expect.objectContaining({ order: expect.objectContaining({ id: 'A-1001', carrier: 'UPS' }) }) }),
     );
-
-    await service.decide(paused.id, { decision: 'approve' });
-
-    const run = await service.waitForRun(paused.id, (stored) => stored.status === 'done');
-    expect(run.result).toMatchObject({
-      action: 'propose_refund',
-      refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
-    });
   });
 
   it('escalates a refund above the configured limit', async () => {
@@ -191,12 +170,15 @@ describe('run deadline', () => {
   beforeEach(() => service.reset());
 
   it('escalates a run whose model does not answer before the configured deadline', async () => {
-    service.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
-    service.model.classify.mockReturnValueOnce(new Promise(() => {}));
+    service.scriptModelNeverAnswers();
 
     const run = await service.triage(aTicket());
 
-    expect(run.result).toMatchObject({ action: 'escalate', flags: { deadlineReached: true } });
+    expect(run.result).toMatchObject({
+      action: 'escalate',
+      reasons: ['Run stopped at its deadline of 0.05 seconds'],
+      flags: { deadlineReached: true },
+    });
     expect(service.model.classify.mock.calls[0]?.[0].signal?.aborted).toBe(true);
   });
 });

@@ -395,11 +395,25 @@ describe('LangGraphTriageAgent', () => {
       refundPolicy.check.mockReturnValueOnce(anEligibility());
       await agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket({ orderId: 'A-1002' }) });
 
-      const { result } = await agent.resume({ runId: RUN_ID, onStep: noStep, decision: 'reject' });
+      const { status, result } = await agent.resume({ runId: RUN_ID, onStep: noStep, decision: 'reject' });
 
+      expect(status).toBe('done');
       expect(result).toMatchObject({ action: 'escalate', refund: null, replyDraft: null });
       expect(result?.reasons).toContain('Refund rejected by a person');
       expect(model.draft).not.toHaveBeenCalled();
+    });
+
+    it('records a rejection in the trace and reports it after the resume', async () => {
+      const { agent, orders, refundPolicy } = aRefundDecision();
+      orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
+      refundPolicy.check.mockReturnValueOnce(anEligibility());
+      await agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket({ orderId: 'A-1002' }) });
+      const reported: TraceEntry[] = [];
+
+      await agent.resume({ runId: RUN_ID, onStep: async (entry) => void reported.push(entry), decision: 'reject' });
+
+      expect(reported.map((entry) => entry.step)).toEqual(['approval', 'validate']);
+      expect(reported[0]).toMatchObject({ output: { decision: 'reject' } });
     });
 
     it('records the decision of the person in the trace', async () => {
@@ -680,23 +694,29 @@ describe('LangGraphTriageAgent', () => {
       expect(result?.summary).toBe('other, normal priority. Action: escalate. Why: Model unavailable: timeout.');
     });
 
-    it('drafts for the decision of the policy, with the refund, and summarizes the amount', async () => {
-      const { agent, model, orders, refundPolicy, knowledgeBase } = anAgent();
-      model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request', issueSummary: 'Wants a refund.' }));
-      model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
-      model.decide.mockResolvedValueOnce({
+    /** A refund of 89 USD that the person approves; the draft and the summary follow. */
+    async function anApprovedRefund() {
+      const setup = anAgent();
+      setup.model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request', issueSummary: 'Wants a refund.' }));
+      setup.model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+      setup.model.decide.mockResolvedValueOnce({
         action: 'propose_refund',
         reasons: ['Delivered 5 days ago.'],
         citedArticles: [],
         refundOrderId: 'A-1002',
       });
-      orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
-      refundPolicy.check.mockReturnValueOnce(anEligibility());
-      model.draft.mockResolvedValueOnce({ replyDraft: 'We are reviewing a refund of 89 USD.' });
-      knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+      setup.orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
+      setup.refundPolicy.check.mockReturnValueOnce(anEligibility());
+      setup.model.draft.mockResolvedValueOnce({ replyDraft: 'We are reviewing a refund of 89 USD.' });
+      setup.knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+      await setup.agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket() });
+      return setup;
+    }
 
-      await agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket() });
-      const { result } = await agent.resume({ runId: RUN_ID, onStep: noStep, decision: 'approve' });
+    it('drafts for the decision of the policy, with the refund', async () => {
+      const { agent, model } = await anApprovedRefund();
+
+      await agent.resume({ runId: RUN_ID, onStep: noStep, decision: 'approve' });
 
       expect(model.draft).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -705,6 +725,13 @@ describe('LangGraphTriageAgent', () => {
           refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
         }),
       );
+    });
+
+    it('summarizes the amount of an approved refund', async () => {
+      const { agent } = await anApprovedRefund();
+
+      const { result } = await agent.resume({ runId: RUN_ID, onStep: noStep, decision: 'approve' });
+
       expect(result?.summary).toBe(
         'refund_request, normal priority. Action: propose_refund (89 USD for order A-1002). Wants a refund. Why: Delivered 5 days ago.',
       );
@@ -784,12 +811,6 @@ describe('LangGraphTriageAgent', () => {
 
       expect(result).toMatchObject({ action: 'propose_refund', flags: { deadlineReached: false } });
     });
-  });
-
-  describe('deadline across the approval pause', () => {
-    beforeEach(() => {
-      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-    });
 
     it('counts the agent time before the pause and after the resume together', async () => {
       const { agent, model, orders, refundPolicy, knowledgeBase } = anAgent({ deadlineMs: 1000 });
@@ -814,21 +835,49 @@ describe('LangGraphTriageAgent', () => {
     });
   });
 
-  it('records a rejection in the trace and reports it after the resume', async () => {
-    const { agent, model, orders, refundPolicy, knowledgeBase } = anAgent();
-    model.classify.mockResolvedValueOnce(aClassification({ category: 'refund_request' }));
-    model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
-    model.decide.mockResolvedValueOnce({ action: 'propose_refund', reasons: ['x'], citedArticles: [], refundOrderId: 'A-1002' });
-    orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
-    refundPolicy.check.mockReturnValueOnce(anEligibility());
+  it('builds the escalation of a run it could not finish', () => {
+    const { agent } = anAgent();
+
+    const { result } = agent.escalate({ reason: 'Service restarted during the run' });
+
+    expect(result).toEqual({
+      category: 'other',
+      priority: 'normal',
+      action: 'escalate',
+      replyDraft: null,
+      citedArticles: [],
+      reasons: ['Service restarted during the run'],
+      refund: null,
+      flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false },
+      summary: 'other, normal priority. Action: escalate. Why: Service restarted during the run.',
+    });
+  });
+
+  it('does not take a model failure worded like the deadline for the deadline', async () => {
+    const { agent, model, knowledgeBase } = anAgent();
+    model.classify.mockRejectedValueOnce(new Error('Run stopped at its deadline of 600 seconds'));
     knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
+    const { result } = await agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket() });
+
+    expect(result?.flags).toMatchObject({ deadlineReached: false, modelFailure: true });
+  });
+
+  it('hands one deadline signal to every model call of the run', async () => {
+    const { agent, model, knowledgeBase } = anAgent();
+    model.classify.mockResolvedValueOnce(aClassification());
+    model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+    model.decide.mockResolvedValueOnce({ action: 'reply', reasons: ['x'], citedArticles: [], refundOrderId: null });
+    model.draft.mockResolvedValueOnce({ replyDraft: 'Hi' });
+    knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
     await agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket() });
-    const reported: TraceEntry[] = [];
 
-    await agent.resume({ runId: RUN_ID, onStep: async (entry) => void reported.push(entry), decision: 'reject' });
-
-    expect(reported.map((entry) => entry.step)).toEqual(['approval', 'validate']);
-    expect(reported[0]).toMatchObject({ output: { decision: 'reject' } });
+    const signal = model.classify.mock.lastCall?.[0].signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(model.nextStep.mock.lastCall?.[0].signal).toBe(signal);
+    expect(model.decide.mock.lastCall?.[0].signal).toBe(signal);
+    expect(model.draft.mock.lastCall?.[0].signal).toBe(signal);
   });
 
   it('reports each step as soon as it ends', async () => {

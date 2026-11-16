@@ -75,4 +75,16 @@ describe('GET /api/runs/:id/events', () => {
 
     expect(await service.errorOf(response, 404)).toMatchObject({ code: 'RUN_NOT_FOUND', details: { id } });
   });
+
+  it('Stream closes when the run awaits approval', async () => {
+    const { release } = service.scriptRefundDecision('A-1002', { held: true });
+    const id = await service.startTriage(aTicket({ orderId: 'A-1002', body: 'Refund please' }));
+    await service.waitForRun(id, (run) => run.trace.length === 2);
+
+    const { events, closed } = await service.followEvents(id, { onFirstEvent: release });
+
+    expect(closed).toBe(true);
+    expect(events[0]).toMatchObject({ type: 'run', run: { status: 'running' } });
+    expect(events.at(-1)).toMatchObject({ type: 'run', run: { status: 'awaiting_approval' } });
+  });
 });

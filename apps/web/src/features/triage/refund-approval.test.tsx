@@ -41,8 +41,11 @@ describe('RefundApproval', () => {
     expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled();
   });
 
-  it('Finished run offers no approval', () => {
-    const { container } = renderWithQuery(<RefundApproval run={aRun()} />);
+  it.each([
+    ['Finished run offers no approval', aRun()],
+    ['offers no approval while the run is running', aRun({ status: 'running', result: null, trace: [POLICY] })],
+  ])('%s', (_name, run) => {
+    const { container } = renderWithQuery(<RefundApproval run={run} />);
 
     expect(container).toBeEmptyDOMElement();
   });

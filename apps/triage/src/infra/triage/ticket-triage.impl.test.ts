@@ -60,6 +60,17 @@ function aTriage() {
   return { triage: new TicketTriageImpl(deps), ...deps };
 }
 
+/** The escalation the agent builds for a run it could not finish. */
+const anEscalation = (reason: string): TriageResult => ({
+  ...RESULT,
+  category: 'other',
+  action: 'escalate',
+  replyDraft: null,
+  reasons: [reason],
+  refund: null,
+  summary: `Escalated: ${reason}`,
+});
+
 /** A new ticket: its id, its start time and its model are scripted. */
 function aNewTicketTriage() {
   const setup = aTriage();
@@ -137,15 +148,15 @@ describe('TicketTriageImpl', () => {
     );
   });
 
-  it('keeps a paused run awaiting approval', async () => {
-    const { triage, agent, runs } = aNewTicketTriage();
+  it('keeps a paused run awaiting approval and publishes it', async () => {
+    const { triage, agent, runs, events } = aNewTicketTriage();
     agent.run.mockResolvedValueOnce({ status: 'awaiting_approval', result: null, trace: [anEntry('policy')] });
 
     await triage.triage({ ticket: TICKET });
 
-    await vi.waitFor(() =>
-      expect(savedStates(runs).at(-1)).toEqual(aStoredRun({ status: 'awaiting_approval', trace: [anEntry('policy')] })),
-    );
+    const paused = aStoredRun({ status: 'awaiting_approval', trace: [anEntry('policy')] });
+    await vi.waitFor(() => expect(savedStates(runs).at(-1)).toEqual(paused));
+    expect(events.publish).toHaveBeenLastCalledWith({ runId: RUN_ID, event: { type: 'run', run: paused } });
   });
 
   it('ends the run as an escalation with the error when the agent fails, keeping its steps', async () => {
@@ -154,21 +165,20 @@ describe('TicketTriageImpl', () => {
       await onStep(anEntry('guard'));
       throw new Error('graph broke');
     });
+    agent.escalate.mockReturnValueOnce({ result: anEscalation('graph broke') });
 
     await triage.triage({ ticket: TICKET });
 
-    const escalated = {
-      status: 'done',
-      trace: [anEntry('guard')],
-      result: { category: 'other', action: 'escalate', replyDraft: null, reasons: ['graph broke'] },
-    };
+    const escalated = { status: 'done', trace: [anEntry('guard')], result: anEscalation('graph broke') };
     await vi.waitFor(() => expect(savedStates(runs).at(-1)).toMatchObject(escalated));
+    expect(agent.escalate).toHaveBeenCalledWith({ reason: 'graph broke' });
     expect(events.publish.mock.lastCall?.[0]).toMatchObject({ runId: RUN_ID, event: { type: 'run', run: escalated } });
   });
 
   it('logs the error when even the escalation cannot be stored', async () => {
     const { triage, agent, runs, logger } = aNewTicketTriage();
     agent.run.mockRejectedValueOnce(new Error('graph broke'));
+    agent.escalate.mockReturnValueOnce({ result: anEscalation('graph broke') });
     runs.save.mockResolvedValueOnce();
     runs.save.mockRejectedValueOnce(new Error('disk full'));
 
@@ -231,6 +241,20 @@ describe('TicketTriageImpl', () => {
     expect(agent.resume).toHaveBeenCalledTimes(1);
   });
 
+  it('accepts the decision again when storing the first one failed', async () => {
+    const { triage, agent, runs } = aTriage();
+    runs.get.mockResolvedValueOnce({ run: aStoredRun() });
+    runs.save.mockRejectedValueOnce(new Error('disk full'));
+    await expect(triage.decide({ runId: RUN_ID, decision: 'approve' })).rejects.toThrow('disk full');
+    expect(agent.resume).not.toHaveBeenCalled();
+    runs.get.mockResolvedValueOnce({ run: aStoredRun() });
+    agent.resume.mockReturnValueOnce(new Promise(() => {}));
+
+    const { run } = await triage.decide({ runId: RUN_ID, decision: 'approve' });
+
+    expect(run.status).toBe('running');
+  });
+
   it('refuses a decision for a run that is not awaiting approval', async () => {
     const { triage, agent, runs } = aTriage();
     runs.get.mockResolvedValueOnce({ run: aStoredRun({ status: 'running' }) });
@@ -242,16 +266,24 @@ describe('TicketTriageImpl', () => {
   });
 
   it('ends the runs left running as escalations of the restart', async () => {
-    const { triage, runs } = aTriage();
+    const { triage, runs, agent } = aTriage();
     runs.listRunning.mockResolvedValueOnce({ runs: [aStoredRun({ status: 'running' })] });
+    agent.escalate.mockReturnValueOnce({ result: anEscalation('Service restarted during the run') });
 
     const { closed } = await triage.closeInterrupted();
 
     expect(closed).toEqual([RUN_ID]);
-    expect(savedStates(runs)[0]).toMatchObject({
-      status: 'done',
-      trace: [anEntry('guard')],
-      result: { action: 'escalate', reasons: ['Service restarted during the run'] },
-    });
+    expect(savedStates(runs)[0]).toEqual(
+      aStoredRun({ status: 'done', trace: [anEntry('guard')], result: anEscalation('Service restarted during the run') }),
+    );
+    expect(agent.escalate).toHaveBeenCalledWith({ reason: 'Service restarted during the run' });
+  });
+
+  it('closes nothing when no run was left running', async () => {
+    const { triage, runs } = aTriage();
+    runs.listRunning.mockResolvedValueOnce({ runs: [] });
+
+    expect(await triage.closeInterrupted()).toEqual({ closed: [] });
+    expect(runs.save).not.toHaveBeenCalled();
   });
 });

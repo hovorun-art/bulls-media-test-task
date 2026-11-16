@@ -36,7 +36,7 @@ export const aTicket = (overrides: Partial<Ticket> = {}): Ticket => ({
   ...overrides,
 });
 
-/** A run as the service stores it, for states no route can create; done unless overridden. */
+/** A run as the service stores it, for states no route can create; running unless overridden. */
 export const aStoredRun = (overrides: Partial<Run> = {}): Run => ({
   id: randomUUID(),
   createdAt: '2026-11-13T12:00:00.000Z',
@@ -91,10 +91,12 @@ export class TriageUnderTest {
     await this.start();
   }
 
-  /** Before each test: no stubs on the model, no stored runs. */
+  /** Before each test: no stubs on the model, no stored runs and no checkpoints of paused runs. */
   reset(): void {
     mockReset(this.model);
-    this.required().get<DatabaseSync>(DATABASE).exec('DELETE FROM runs');
+    const database = this.required().get<DatabaseSync>(DATABASE);
+    const tables = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('runs', 'checkpoints', 'writes')").all();
+    for (const { name } of tables) database.exec(`DELETE FROM ${String(name)}`);
   }
 
   /** Stores a run as it is, for a state no route can create (e.g. left running by a stopped service). */
@@ -207,6 +209,12 @@ export class TriageUnderTest {
   }
 
   /** Every model call fails, as when the model server is down. */
+  /** The model never answers the classification, so the run stays running. */
+  scriptModelNeverAnswers(): void {
+    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.classify.mockReturnValueOnce(new Promise(() => {}));
+  }
+
   scriptModelDown(): void {
     this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
     this.model.classify.mockRejectedValueOnce(new ModelUnavailableError({ reason: 'connect ECONNREFUSED' }));

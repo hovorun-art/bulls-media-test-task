@@ -69,11 +69,13 @@ describe('DomainErrorFilter', () => {
     ['INTERNAL_ERROR', 500],
   ] as const)('maps %s to %i with its own code, message and details', (code, status) => {
     const { host, sent } = aHostCapturingTheResponse();
-    const filter = new DomainErrorFilter(mockDeep<Logger>());
+    const logger = mockDeep<Logger>();
+    const filter = new DomainErrorFilter(logger);
 
     filter.catch(new DomainError({ code, message: 'x', details: { reason: 'y' } }), host);
 
     expect(sent).toEqual({ status, body: { code, message: 'x', details: { reason: 'y' } } });
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('maps an unknown route to 404 NOT_FOUND without logging it', () => {

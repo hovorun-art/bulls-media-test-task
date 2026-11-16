@@ -62,33 +62,36 @@ const DONE = {
 /** A server-sent event stream as the service sends it. */
 const eventStream = (...events: unknown[]) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
 
+/** Serves the given server-sent events on the run's stream. */
+const streamOf = (...events: unknown[]) => ({ contentType: 'text/event-stream', body: eventStream(...events) });
+
 test('a support agent triages a sample ticket, follows its steps, approves the refund and sees the decision', async ({ page }) => {
-  let runs: unknown[] = [];
-  let approved = false;
   const summary = { id: RUN_ID, createdAt: RUN.createdAt, subject: TICKET.subject };
-  await page.route('**/api/runs', (route) => route.fulfill({ json: { runs } }));
-  await page.route(`**/api/runs/${RUN_ID}`, (route) => route.fulfill({ json: approved ? DONE : RUN }));
+  await page.route('**/api/runs', (route) => route.fulfill({ json: { runs: [] } }));
+  await page.route(`**/api/runs/${RUN_ID}`, (route) => route.fulfill({ json: RUN }));
   await page.route(`**/api/runs/${RUN_ID}/events`, (route) =>
-    route.fulfill({
-      contentType: 'text/event-stream',
-      body: approved
-        ? eventStream({ type: 'run', run: { ...PAUSED, status: 'running' } }, { type: 'run', run: DONE })
-        : eventStream(
-            { type: 'run', run: RUN },
-            { type: 'step', index: 0, entry: step('guard') },
-            { type: 'step', index: 1, entry: ELIGIBILITY },
-            { type: 'run', run: PAUSED },
-          ),
-    }),
+    route.fulfill(
+      streamOf(
+        { type: 'run', run: RUN },
+        { type: 'step', index: 0, entry: step('guard') },
+        { type: 'step', index: 1, entry: ELIGIBILITY },
+        { type: 'run', run: PAUSED },
+      ),
+    ),
   );
-  await page.route(`**/api/runs/${RUN_ID}/approval`, (route) => {
-    approved = true;
-    runs = [{ ...summary, status: 'done', category: 'refund_request', action: 'propose_refund' }];
-    return route.fulfill({ json: { ...PAUSED, status: 'running' } });
+  await page.route('**/api/triage', async (route) => {
+    await page.route('**/api/runs', (list) => list.fulfill({ json: { runs: [{ ...summary, status: 'running', category: null, action: null }] } }));
+    await route.fulfill({ status: 202, json: { id: RUN_ID } });
   });
-  await page.route('**/api/triage', (route) => {
-    runs = [{ ...summary, status: 'running', category: null, action: null }];
-    return route.fulfill({ status: 202, json: { id: RUN_ID } });
+  await page.route(`**/api/runs/${RUN_ID}/approval`, async (route) => {
+    await page.route('**/api/runs', (list) =>
+      list.fulfill({ json: { runs: [{ ...summary, status: 'done', category: 'refund_request', action: 'propose_refund' }] } }),
+    );
+    await page.route(`**/api/runs/${RUN_ID}`, (run) => run.fulfill({ json: DONE }));
+    await page.route(`**/api/runs/${RUN_ID}/events`, (events) =>
+      events.fulfill(streamOf({ type: 'run', run: { ...PAUSED, status: 'running' } }, { type: 'run', run: DONE })),
+    );
+    await route.fulfill({ json: { ...PAUSED, status: 'running' } });
   });
   await page.goto('/');
 

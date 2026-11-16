@@ -1,6 +1,7 @@
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { ChatAnthropic } from '@langchain/anthropic';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
 import { ChatOllama } from '@langchain/ollama';
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { CLOCK, type Clock, LOGGER, type Logger, RANDOM, type Random } from '@triage/kernel';
@@ -8,6 +9,7 @@ import { INJECTION_GUARD, type InjectionGuard } from '../../domain/guard/injecti
 import { KNOWLEDGE_BASE, type KnowledgeBase } from '../../domain/knowledge-base/knowledge-base';
 import { ORDER_STORE, type OrderStore } from '../../domain/orders/order-store';
 import { REFUND_POLICY, type RefundPolicy } from '../../domain/refunds/refund-policy';
+import { RUN_EVENTS, type RunEvents } from '../../domain/runs/run-events';
 import { RUN_REPOSITORY, type RunRepository } from '../../domain/runs/run-repository';
 import { MODEL_READINESS, type ModelReadiness } from '../../domain/triage/model-readiness';
 import { SUPPORT_MODEL, type SupportModel } from '../../domain/triage/support-model';
@@ -73,21 +75,36 @@ export class TriageModule {
             config: TriageConfig,
           ) =>
             new LangGraphTriageAgent(
-              { model, knowledgeBase, orders, refundPolicy, injectionGuard, clock, logger },
-              { maxToolCalls: config.MAX_TOOL_CALLS, knowledgeBaseResults: 3 },
+              {
+                model,
+                knowledgeBase,
+                orders,
+                refundPolicy,
+                injectionGuard,
+                clock,
+                logger,
+                // Paused runs live next to the runs, in the same SQLite file, in the saver's own tables.
+                checkpointer: SqliteSaver.fromConnString(resolve(APP_ROOT, config.DATABASE_PATH)),
+              },
+              {
+                maxToolCalls: config.MAX_TOOL_CALLS,
+                knowledgeBaseResults: 3,
+                deadlineMs: config.RUN_DEADLINE_SECONDS * 1000,
+              },
             ),
         },
         {
           provide: TICKET_TRIAGE,
-          inject: [TRIAGE_AGENT, RUN_REPOSITORY, SUPPORT_MODEL, CLOCK, RANDOM, LOGGER],
+          inject: [TRIAGE_AGENT, RUN_REPOSITORY, RUN_EVENTS, SUPPORT_MODEL, CLOCK, RANDOM, LOGGER],
           useFactory: (
             agent: TriageAgent,
             runs: RunRepository,
+            events: RunEvents,
             model: SupportModel,
             clock: Clock,
             random: Random,
             logger: Logger,
-          ) => new TicketTriageImpl({ agent, runs, model, clock, random, logger }),
+          ) => new TicketTriageImpl({ agent, runs, events, model, clock, random, logger }),
         },
       ],
     };

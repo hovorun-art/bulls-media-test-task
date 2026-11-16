@@ -16,6 +16,9 @@ export const TriageConfigSchema = z
     MAX_TOOL_CALLS: z.coerce.number().int().min(1).default(8),
     REFUND_WINDOW_DAYS: z.coerce.number().int().min(0).default(30),
     REFUND_MAX_AUTO_AMOUNT: z.coerce.number().min(0).default(500),
+    /** Agent time a run may take; the wait for a refund approval does not count. */
+    RUN_DEADLINE_SECONDS: z.coerce.number().positive().default(600),
+    RUN_EVENTS_HEARTBEAT_SECONDS: z.coerce.number().positive().default(15),
     PORT: z.coerce.number().int().min(0).default(3000),
     HOST: z.string().default('127.0.0.1'),
     DATABASE_PATH: z.string().default('data/runs.sqlite'),

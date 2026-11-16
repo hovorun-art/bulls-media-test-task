@@ -17,13 +17,18 @@ export interface Classification {
   issueSummary: string;
 }
 
-export interface ClassifySupportModelRequest {
+/** Every model call can be cancelled, e.g. when the run's deadline passes. */
+interface CancellableSupportModelRequest {
+  signal?: AbortSignal;
+}
+
+export interface ClassifySupportModelRequest extends CancellableSupportModelRequest {
   ticket: Ticket;
 }
 
 export type ClassifySupportModelResponse = Classification;
 
-export interface NextStepSupportModelRequest {
+export interface NextStepSupportModelRequest extends CancellableSupportModelRequest {
   ticket: Ticket;
   classification: Classification;
   observations: Observation[];
@@ -34,7 +39,7 @@ export interface NextStepSupportModelResponse {
   step: { kind: 'tool'; tool: ToolName; args: Record<string, unknown> } | { kind: 'done' };
 }
 
-export interface DecideSupportModelRequest {
+export interface DecideSupportModelRequest extends CancellableSupportModelRequest {
   ticket: Ticket;
   classification: Classification;
   observations: Observation[];
@@ -48,7 +53,7 @@ export interface DecideSupportModelResponse {
   refundOrderId: string | null;
 }
 
-export interface DraftSupportModelRequest {
+export interface DraftSupportModelRequest extends CancellableSupportModelRequest {
   ticket: Ticket;
   classification: Classification;
   action: Action;

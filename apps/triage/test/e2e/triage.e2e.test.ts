@@ -1,3 +1,4 @@
+import { RunSchema, TriageAcceptedSchema } from '@triage/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { aTicket, TriageUnderTest } from './triage-under-test';
 
@@ -49,7 +50,8 @@ describe('POST /api/triage', () => {
 
     const response = await service.postTicket(aTicket({ subject: 'x'.repeat(200), body: 'x'.repeat(5000) }));
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
+    await service.waitForRun(TriageAcceptedSchema.parse(await response.json()).id, (run) => run.status === 'done');
   });
 
   it('rejects a body that is not JSON', async () => {
@@ -63,6 +65,17 @@ describe('POST /api/triage', () => {
 
     expect((await service.errorOf(response, 400)).code).toBe('VALIDATION_FAILED');
     expect(service.model.classify).not.toHaveBeenCalled();
+  });
+
+  it('Ticket is accepted at once', async () => {
+    service.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    service.model.classify.mockReturnValueOnce(new Promise(() => {}));
+
+    const response = await service.postTicket(aTicket());
+
+    expect(response.status).toBe(202);
+    const { id } = TriageAcceptedSchema.parse(await response.json());
+    expect(RunSchema.parse(await (await service.getRun(id)).json()).status).toBe('running');
   });
 
   it('Model unavailable ends in escalation', async () => {
@@ -99,11 +112,16 @@ describe('POST /api/triage', () => {
     expect(search.articles[0]?.id).toBe('order-tracking');
   });
 
-  it('proposes a refund that the seeded order and the configured policy allow', async () => {
+  it('proposes an approved refund that the seeded order and the configured policy allow', async () => {
     service.scriptRefundDecision('A-1002');
+    const paused = await service.triage(
+      aTicket({ email: 'anna@example.com', orderId: 'A-1002', body: 'Refund please' }),
+      'awaiting_approval',
+    );
 
-    const run = await service.triage(aTicket({ email: 'anna@example.com', orderId: 'A-1002', body: 'Refund please' }));
+    await service.decide(paused.id, { decision: 'approve' });
 
+    const run = await service.waitForRun(paused.id, (stored) => stored.status === 'done');
     expect(run.result).toMatchObject({
       action: 'propose_refund',
       refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
@@ -132,6 +150,24 @@ describe('POST /api/triage', () => {
     expect(service.model.draft).not.toHaveBeenCalled();
   });
 
+  it('Complaint about double charging is not flagged', async () => {
+    service.scriptReply();
+
+    const run = await service.triage(aTicket({ body: 'You are now charging me twice for the same order.' }));
+
+    expect(run.result?.flags.injectionSuspected).toBe(false);
+    expect(service.model.nextStep).toHaveBeenCalled();
+  });
+
+  it('Unhandled error ends the run as an escalation', async () => {
+    service.scriptHeldResearch();
+    service.failSaveAfter(1); // the run is stored at its start; storing its first step fails
+
+    const run = await service.triage(aTicket());
+
+    expect(run.result).toMatchObject({ action: 'escalate', replyDraft: null, reasons: ['disk full'] });
+  });
+
   it('answers an unexpected failure with a generic 500 and stores nothing', async () => {
     service.scriptReply();
     vi.spyOn(service.runRepository(), 'save').mockRejectedValueOnce(new Error('disk full'));
@@ -144,5 +180,23 @@ describe('POST /api/triage', () => {
       details: {},
     });
     expect(await service.listRuns()).toEqual({ runs: [] });
+  });
+});
+
+describe('run deadline', () => {
+  const service = new TriageUnderTest();
+
+  beforeAll(() => service.start({ env: { RUN_DEADLINE_SECONDS: '0.05' } }));
+  afterAll(() => service.stop());
+  beforeEach(() => service.reset());
+
+  it('escalates a run whose model does not answer before the configured deadline', async () => {
+    service.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    service.model.classify.mockReturnValueOnce(new Promise(() => {}));
+
+    const run = await service.triage(aTicket());
+
+    expect(run.result).toMatchObject({ action: 'escalate', flags: { deadlineReached: true } });
+    expect(service.model.classify.mock.calls[0]?.[0].signal?.aborted).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import {
+  type ApprovalDecision,
   type ErrorBody,
   ErrorBodySchema,
   type Run,
@@ -6,6 +7,8 @@ import {
   RunListSchema,
   RunSchema,
   type Ticket,
+  type TriageAccepted,
+  TriageAcceptedSchema,
 } from '@triage/contracts';
 import type { z } from 'zod';
 
@@ -26,8 +29,8 @@ async function request<T extends z.ZodType>(schema: T, path: string, init?: Requ
   return schema.parse(json);
 }
 
-export function triageTicket(ticket: Ticket): Promise<Run> {
-  return request(RunSchema, '/api/triage', {
+export function triageTicket(ticket: Ticket): Promise<TriageAccepted> {
+  return request(TriageAcceptedSchema, '/api/triage', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(ticket),
@@ -40,4 +43,17 @@ export function listRuns(): Promise<RunList> {
 
 export function getRun(id: string): Promise<Run> {
   return request(RunSchema, `/api/runs/${id}`);
+}
+
+export function decideRefund(id: string, decision: ApprovalDecision): Promise<Run> {
+  return request(RunSchema, `/api/runs/${id}/approval`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ decision }),
+  });
+}
+
+/** The server-sent event stream of a run (see RunEventSchema). */
+export function runEventsUrl(id: string): string {
+  return new URL(`/api/runs/${id}/events`, window.location.origin).toString();
 }

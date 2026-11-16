@@ -32,7 +32,8 @@
       "injectionSuspected": "Possible prompt injection",
       "toolLimitReached": "Tool call limit reached",
       "policyOverride": "Policy overrode the model",
-      "modelFailure": "Model failure"
+      "modelFailure": "Model failure",
+      "deadlineReached": "Run deadline reached"
     },
     "actions": {
       "reply": "Reply",

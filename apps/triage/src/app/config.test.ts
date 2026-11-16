@@ -24,6 +24,8 @@ describe('TriageConfigSchema', () => {
       MAX_TOOL_CALLS: 8,
       REFUND_WINDOW_DAYS: 30,
       REFUND_MAX_AUTO_AMOUNT: 500,
+      RUN_DEADLINE_SECONDS: 600,
+      RUN_EVENTS_HEARTBEAT_SECONDS: 15,
       PORT: 3000,
     });
   });
@@ -57,6 +59,8 @@ describe('TriageConfigSchema', () => {
     ['MAX_TOOL_CALLS', '0'],
     ['MAX_TOOL_CALLS', '2.5'],
     ['REFUND_MAX_AUTO_AMOUNT', '-1'],
+    ['RUN_DEADLINE_SECONDS', '0'],
+    ['RUN_EVENTS_HEARTBEAT_SECONDS', '0'],
     ['PORT', '-1'],
     ['LOG_LEVEL', 'verbose'],
   ])('refuses to start with %s=%s', (name, value) => {

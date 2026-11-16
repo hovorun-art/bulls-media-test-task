@@ -63,7 +63,7 @@ export class LangChainSupportModel implements SupportModel {
   ) {}
 
   async classify(req: ClassifySupportModelRequest): Promise<ClassifySupportModelResponse> {
-    return this.structured('classification', ClassificationOutput, [
+    return this.structured('classification', ClassificationOutput, req.signal, [
       new SystemMessage(SUPPORT_PROMPTS.classify),
       new HumanMessage(this.fence(req.ticket)),
     ]);
@@ -76,14 +76,14 @@ export class LangChainSupportModel implements SupportModel {
       new HumanMessage(`${this.fence(req.ticket)}\n\nCategory: ${req.classification.category}\n${this.facts(req.observations)}`),
     ];
     const withTools = this.d.chatModel.bindTools(this.tools).withRetry({ stopAfterAttempt: this.p.maxAttempts });
-    const answer = (await this.call(() => withTools.invoke(messages))) as AIMessage;
+    const answer = (await this.call(req.signal, () => withTools.invoke(messages, { signal: req.signal }))) as AIMessage;
     const call = answer.tool_calls?.[0];
     if (!call || !this.isToolName(call.name)) return { step: { kind: 'done' } };
     return { step: { kind: 'tool', tool: call.name, args: call.args } };
   }
 
   async decide(req: DecideSupportModelRequest): Promise<DecideSupportModelResponse> {
-    return this.structured('decision', DecisionOutput, [
+    return this.structured('decision', DecisionOutput, req.signal, [
       new SystemMessage(SUPPORT_PROMPTS.decide),
       new HumanMessage(
         `${this.fence(req.ticket)}\n\nClassification: ${JSON.stringify(req.classification)}\n${this.facts(req.observations)}`,
@@ -93,7 +93,7 @@ export class LangChainSupportModel implements SupportModel {
 
   async draft(req: DraftSupportModelRequest): Promise<DraftSupportModelResponse> {
     const decision = { action: req.action, reasons: req.reasons, refund: req.refund };
-    return this.structured('reply', DraftOutput, [
+    return this.structured('reply', DraftOutput, req.signal, [
       new SystemMessage(SUPPORT_PROMPTS.draft),
       new HumanMessage(
         `${this.fence(req.ticket)}\n\nDecision: ${JSON.stringify(decision)}\n${this.facts(req.observations)}`,
@@ -109,14 +109,20 @@ export class LangChainSupportModel implements SupportModel {
    * Asks for output matching the schema. Output that fails it is sent back with the validation error,
    * up to `repairAttempts` times. Failed calls are retried first, up to `maxAttempts`.
    */
-  private async structured<T extends z.ZodObject>(name: string, schema: T, messages: BaseMessage[]): Promise<z.infer<T>> {
+  private async structured<T extends z.ZodObject>(
+    name: string,
+    schema: T,
+    signal: AbortSignal | undefined,
+    messages: BaseMessage[],
+  ): Promise<z.infer<T>> {
     const attempts = this.p.repairAttempts + 1;
     let conversation = messages;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      this.stopIfAborted(signal);
       const runnable = this.d.chatModel
         .withStructuredOutput(schema, { name, includeRaw: true })
         .withRetry({ stopAfterAttempt: this.p.maxAttempts });
-      const answer = await this.call(() => runnable.invoke(conversation));
+      const answer = await this.call(signal, () => runnable.invoke(conversation, { signal }));
       const parsed = schema.safeParse(answer.parsed);
       if (parsed.success) return parsed.data;
       const problems = parsed.error.issues.map((issue) => `${issue.path.join('.') || 'output'} ${issue.message}`);
@@ -130,12 +136,17 @@ export class LangChainSupportModel implements SupportModel {
     throw new ModelUnavailableError({ reason: `invalid output after ${attempts} attempts` });
   }
 
-  private async call<T>(work: () => Promise<T>): Promise<T> {
+  private async call<T>(signal: AbortSignal | undefined, work: () => Promise<T>): Promise<T> {
     try {
       return await work();
     } catch (error) {
+      this.stopIfAborted(signal);
       throw new ModelUnavailableError({ reason: error instanceof Error ? error.message : String(error) });
     }
+  }
+
+  private stopIfAborted(signal: AbortSignal | undefined): void {
+    if (signal?.aborted) throw new ModelUnavailableError({ reason: 'the call was aborted' });
   }
 
   /** The ticket as untrusted data: angle brackets inside it are neutralised so it cannot close the fence. */

@@ -1,4 +1,4 @@
-import type { Run, Ticket } from '@triage/contracts';
+import type { Ticket } from '@triage/contracts';
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SAMPLE_TICKETS } from './samples';
@@ -6,7 +6,8 @@ import { useTriage } from './use-triage';
 
 const EMPTY = { email: '', subject: '', body: '', orderId: '' };
 
-export function TicketForm({ onTriaged }: { onTriaged: (run: Run) => void }) {
+/** `onTriaged` gets the id of the accepted run, which goes on in the background. */
+export function TicketForm({ onTriaged }: { onTriaged: (id: string) => void }) {
   const { t } = useTranslation();
   const [fields, setFields] = useState(EMPTY);
   const triage = useTriage();
@@ -20,7 +21,7 @@ export function TicketForm({ onTriaged }: { onTriaged: (run: Run) => void }) {
     event.preventDefault();
     const { orderId, ...rest } = fields;
     const ticket: Ticket = orderId.trim() ? { ...rest, orderId } : rest;
-    triage.mutate(ticket, { onSuccess: (run) => onTriaged(run) });
+    triage.mutate(ticket, { onSuccess: ({ id }) => onTriaged(id) });
   };
 
   const field = (name: keyof typeof EMPTY) => ({

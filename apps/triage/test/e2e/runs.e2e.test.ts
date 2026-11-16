@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { RunSchema } from '@triage/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { aTicket as aBaseTicket, TriageUnderTest } from './triage-under-test';
+import { aTicket as aBaseTicket, aStoredRun, TriageUnderTest } from './triage-under-test';
 
 const aTicketAbout = (subject: string) => aBaseTicket({ subject });
 
@@ -22,6 +22,27 @@ describe('GET /api/runs', () => {
     expect(RunSchema.parse(await response.json())).toEqual(triaged);
   });
 
+  it('Running run shows the trace so far', async () => {
+    service.scriptHeldResearch();
+    const id = await service.startTriage(aTicketAbout('Lamp'));
+
+    const run = await service.waitForRun(id, (stored) => stored.trace.length === 2);
+
+    expect(run.status).toBe('running');
+    expect(run.trace.map((entry) => entry.step)).toEqual(['guard', 'classify']);
+    expect(run.result).toBeNull();
+  });
+
+  it('Running run is listed with its status', async () => {
+    service.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    service.model.classify.mockReturnValueOnce(new Promise(() => {}));
+    const id = await service.startTriage(aTicketAbout('Lamp'));
+
+    const { runs } = await service.listRuns();
+
+    expect(runs).toEqual([expect.objectContaining({ id, status: 'running', category: null, action: null })]);
+  });
+
   it('Runs are listed newest first', async () => {
     service.scriptReply();
     const first = await service.triage(aTicketAbout('First'));
@@ -31,8 +52,8 @@ describe('GET /api/runs', () => {
     const { runs } = await service.listRuns();
 
     expect(runs).toMatchObject([
-      { id: second.id, subject: 'Second', category: 'order_status', action: 'reply' },
-      { id: first.id, subject: 'First', category: 'order_status', action: 'reply' },
+      { id: second.id, subject: 'Second', status: 'done', category: 'order_status', action: 'reply' },
+      { id: first.id, subject: 'First', status: 'done', category: 'order_status', action: 'reply' },
     ]);
   });
 
@@ -65,11 +86,32 @@ describe('GET /api/runs', () => {
 
     const response = await service.getRun(id);
 
-
     expect(await service.errorOf(response, 404)).toEqual({
       code: 'RUN_NOT_FOUND',
       message: `Run ${id} not found`,
       details: { id },
     });
+  });
+
+  it('Running run is closed on start', async () => {
+    const left = aStoredRun({ status: 'running' });
+    await service.store(left);
+
+    await service.restart();
+
+    const run = RunSchema.parse(await (await service.getRun(left.id)).json());
+    expect(run).toMatchObject({
+      status: 'done',
+      result: { action: 'escalate', reasons: ['Service restarted during the run'] },
+    });
+  });
+
+  it('Paused run is kept on start', async () => {
+    const paused = aStoredRun({ status: 'awaiting_approval' });
+    await service.store(paused);
+
+    await service.restart();
+
+    expect(RunSchema.parse(await (await service.getRun(paused.id)).json()).status).toBe('awaiting_approval');
   });
 });

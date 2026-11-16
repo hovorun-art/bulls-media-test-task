@@ -53,6 +53,38 @@ describe('LangChainSupportModel', () => {
     expect(runnables[0]?.withRetry).toHaveBeenCalledWith({ stopAfterAttempt: 3 });
   });
 
+  it('passes the abort signal on to the chat model', async () => {
+    const { chatModel, runnables } = aChatModelAnswering(CLASSIFICATION);
+    const { signal } = new AbortController();
+
+    await aModel(chatModel).classify({ ticket: TICKET, signal });
+
+    expect(runnables[0]?.invoke).toHaveBeenCalledWith(expect.anything(), { signal });
+  });
+
+  it('names the abort as the reason when an aborted call fails', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const { chatModel } = aChatModelAnswering(new Error('This operation was aborted'));
+
+    await expect(aModel(chatModel).classify({ ticket: TICKET, signal: controller.signal })).rejects.toThrow(
+      'Model unavailable: the call was aborted',
+    );
+  });
+
+  it('does not repair an answer once the call is aborted', async () => {
+    const controller = new AbortController();
+    const { chatModel } = aChatModelAnswering({ category: 'lost_parcel' });
+    chatModel.withStructuredOutput.mockImplementationOnce(() => {
+      throw new Error('a repair must not be asked for');
+    });
+
+    const answer = aModel(chatModel).classify({ ticket: TICKET, signal: controller.signal });
+    controller.abort();
+
+    await expect(answer).rejects.toThrow('Model unavailable: the call was aborted');
+  });
+
   it('sends back only the latest validation error on each repair', async () => {
     const { chatModel, runnables } = aChatModelAnswering(
       { category: 'lost_parcel', priority: 'normal', issueSummary: 'x' },
@@ -152,6 +184,31 @@ describe('LangChainSupportModel', () => {
     const next = await aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [] });
 
     expect(next).toEqual({ step: { kind: 'tool', tool: 'get_order', args: { orderId: 'A-1001' } } });
+  });
+
+  it('passes the abort signal on when researching', async () => {
+    const chatModel = mockDeep<BaseChatModel>();
+    const withTools = mockDeep<Runnable>();
+    withTools.withRetry.mockReturnValueOnce(withTools as never);
+    withTools.invoke.mockResolvedValueOnce(new AIMessage('DONE'));
+    vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
+    const { signal } = new AbortController();
+
+    await aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [], signal });
+
+    expect(withTools.invoke).toHaveBeenCalledWith(expect.anything(), { signal });
+  });
+
+  it('fails research with ModelUnavailableError when the call fails', async () => {
+    const chatModel = mockDeep<BaseChatModel>();
+    const withTools = mockDeep<Runnable>();
+    withTools.withRetry.mockReturnValueOnce(withTools as never);
+    withTools.invoke.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+    vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
+
+    await expect(
+      aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [] }),
+    ).rejects.toThrow(new ModelUnavailableError({ reason: 'connect ECONNREFUSED' }));
   });
 
   it.each([

@@ -19,7 +19,7 @@ export function App() {
       </header>
       <div className="layout">
         <div className="column">
-          <TicketForm onTriaged={(triaged) => setSelectedId(triaged.id)} />
+          <TicketForm onTriaged={setSelectedId} />
           <RunHistory selectedId={selectedId} onSelect={setSelectedId} />
         </div>
         <div className="column">

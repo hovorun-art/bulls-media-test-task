@@ -3,13 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
 import type { SchemaMigrator } from '../../domain/runs/schema-migrator';
 import type { ModelReadiness } from '../../domain/triage/model-readiness';
+import type { TicketTriage } from '../../domain/triage/ticket-triage';
 import { StartupChecks } from './startup-checks';
 
-function aStartup(applied: string[]) {
+function aStartup(applied: string[], closed: string[] = []) {
   const order: string[] = [];
   const migrator = mockDeep<SchemaMigrator>();
   const readiness = mockDeep<ModelReadiness>();
   const logger = mockDeep<Logger>();
+  const tickets = mockDeep<TicketTriage>();
+  tickets.closeInterrupted.mockImplementationOnce(async () => {
+    order.push('close');
+    return { closed };
+  });
   migrator.migrate.mockImplementationOnce(() => {
     order.push('migrate');
     return { applied };
@@ -17,16 +23,24 @@ function aStartup(applied: string[]) {
   readiness.check.mockImplementationOnce(async () => {
     order.push('check');
   });
-  return { checks: new StartupChecks(migrator, readiness, logger), logger, order };
+  return { checks: new StartupChecks(migrator, tickets, readiness, logger), logger, order };
 }
 
 describe('StartupChecks', () => {
-  it('migrates the storage before checking the model', async () => {
+  it('migrates the storage and closes interrupted runs before checking the model', async () => {
     const { checks, order } = aStartup([]);
 
     await checks.onApplicationBootstrap();
 
-    expect(order).toEqual(['migrate', 'check']);
+    expect(order).toEqual(['migrate', 'close', 'check']);
+  });
+
+  it('logs the runs it closed', async () => {
+    const { checks, logger } = aStartup([], ['run-1']);
+
+    await checks.onApplicationBootstrap();
+
+    expect(logger.warn).toHaveBeenCalledWith({ message: 'interrupted runs closed', context: { closed: ['run-1'] } });
   });
 
   it('logs the migrations it applied', async () => {

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 export function TriageResult({ run }: { run: Run }) {
   const { t } = useTranslation();
   const { result } = run;
+  if (!result) return null;
   const raised = (Object.keys(result.flags) as (keyof TriageFlags)[]).filter((flag) => result.flags[flag]);
 
   return (

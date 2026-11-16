@@ -16,7 +16,13 @@ const aTriageResult = (overrides: Record<string, unknown> = {}) => ({
   citedArticles: ['refund-policy'],
   reasons: ['Delivered 5 days ago'],
   refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
-  flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false },
+  flags: {
+    injectionSuspected: false,
+    toolLimitReached: false,
+    policyOverride: false,
+    modelFailure: false,
+    deadlineReached: false,
+  },
   summary: 'Refund proposed.',
   ...overrides,
 });
@@ -102,6 +108,11 @@ describe('TriageResultSchema', () => {
     ['unknown priority', 'priority', { priority: 'critical' }],
     ['negative refund amount', 'refund.amount', { refund: { orderId: 'A-1', amount: -1, currency: 'USD' } }],
     ['missing flags', 'flags', { flags: undefined }],
+    [
+      'flags without the deadline flag',
+      'flags.deadlineReached',
+      { flags: { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false } },
+    ],
   ])('rejects an %s', (_case, field, overrides) => {
     expect(issuePaths(TriageResultSchema.safeParse(aTriageResult(overrides)))).toEqual([field]);
   });
@@ -114,6 +125,12 @@ describe('TraceEntrySchema', () => {
 
   it('accepts a failed step without a tool and with no duration', () => {
     const entry = aTraceEntry({ step: 'classify', tool: null, error: 'Model unavailable', durationMs: 0 });
+
+    expect(TraceEntrySchema.safeParse(entry).success).toBe(true);
+  });
+
+  it('accepts the decision of a person on a refund', () => {
+    const entry = aTraceEntry({ step: 'approval', tool: null, input: { refund: null }, output: { decision: 'approve' } });
 
     expect(TraceEntrySchema.safeParse(entry).success).toBe(true);
   });

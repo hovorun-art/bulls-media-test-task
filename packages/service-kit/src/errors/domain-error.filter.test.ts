@@ -63,6 +63,7 @@ describe('DomainErrorFilter', () => {
 
   it.each([
     ['NOT_FOUND', 404],
+    ['RUN_NOT_AWAITING_APPROVAL', 409],
     ['MODEL_UNAVAILABLE', 503],
     ['CONFIG_INVALID', 500],
     ['INTERNAL_ERROR', 500],

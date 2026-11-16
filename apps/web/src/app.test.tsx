@@ -26,7 +26,7 @@ describe('App', () => {
       http.get(`*/api/runs/${run.id}`, () => HttpResponse.json(run)),
       http.post('*/api/triage', () => {
         stored = [summary];
-        return HttpResponse.json(run);
+        return HttpResponse.json({ id: run.id }, { status: 202 });
       }),
     );
     renderWithQuery(<App />);

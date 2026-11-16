@@ -1,5 +1,13 @@
-import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
-import type { Action, RefundProposal, Ticket, TraceEntry, TraceStep, TriageResult } from '@triage/contracts';
+import { Annotation, type BaseCheckpointSaver, Command, END, interrupt, START, StateGraph } from '@langchain/langgraph';
+import type {
+  Action,
+  ApprovalDecision,
+  RefundProposal,
+  Ticket,
+  TraceEntry,
+  TraceStep,
+  TriageResult,
+} from '@triage/contracts';
 import type { Clock, Logger } from '@triage/kernel';
 import type { InjectionGuard, InspectInjectionGuardResponse } from '../../domain/guard/injection-guard';
 import type { KnowledgeBase } from '../../domain/knowledge-base/knowledge-base';
@@ -12,7 +20,15 @@ import type {
   SupportModel,
   ToolName,
 } from '../../domain/triage/support-model';
-import type { RunTriageAgentRequest, RunTriageAgentResponse, TriageAgent } from '../../domain/triage/triage-agent';
+import type {
+  ResumeTriageAgentRequest,
+  ResumeTriageAgentResponse,
+  RunTriageAgentRequest,
+  RunTriageAgentResponse,
+  TriageAgent,
+  TriageAgentOutcome,
+  TriageStepListener,
+} from '../../domain/triage/triage-agent';
 import { AGENT_TOOLS } from './agent-tools';
 
 /** The final decision after the policy step, before the draft. */
@@ -22,6 +38,15 @@ interface Decision {
   citedArticles: string[];
   refund: RefundProposal | null;
   policyOverride: boolean;
+}
+
+/** One invocation of the graph for a run: its deadline signal and where its steps are reported. */
+interface RunSession {
+  signal: AbortSignal;
+  onStep: TriageStepListener;
+  startedAt: number;
+  /** Agent time the run spent before this invocation (before the approval pause). */
+  spentMs: number;
 }
 
 /**
@@ -44,6 +69,9 @@ const AgentState = Annotation.Root({
   decision: Annotation<Decision | null>({ reducer: (_, next) => next, default: () => null }),
   replyDraft: Annotation<string | null>({ reducer: (_, next) => next, default: () => null }),
   failure: Annotation<string | null>({ reducer: (_, next) => next, default: () => null }),
+  refundRejected: Annotation<boolean>({ reducer: (_, next) => next, default: () => false }),
+  /** Agent time up to the policy step, kept so that the approval pause does not count toward the deadline. */
+  agentMs: Annotation<number>({ reducer: (_, next) => next, default: () => 0 }),
   result: Annotation<TriageResult | null>({ reducer: (_, next) => next, default: () => null }),
   trace: Annotation<TraceEntry[]>({ reducer: (all, next) => all.concat(next), default: () => [] }),
 });
@@ -59,27 +87,34 @@ export interface LangGraphTriageAgentDeps {
   injectionGuard: InjectionGuard;
   clock: Clock;
   logger: Logger;
+  /** Keeps a run paused for approval, by run id; a persistent one lets the pause survive a restart. */
+  checkpointer: BaseCheckpointSaver;
 }
 
 export interface LangGraphTriageAgentParams {
   /** Research stops and the ticket is escalated after this many tool calls. */
   maxToolCalls: number;
   knowledgeBaseResults: number;
+  /** Agent time a run may take, without the approval pause; past it the run is escalated. */
+  deadlineMs: number;
 }
 
 /**
  * The triage workflow as a LangGraph state graph:
  *
- *   guard → classify → research ⇄ tool → decide → policy → draft → validate
+ *   guard → classify → research ⇄ tool → decide → policy → (approval) → draft → validate
  *
  * - guard: deterministic prompt-injection check; a suspected ticket skips research and decide.
  * - research: the model picks the next tool or says it is done; bounded by maxToolCalls.
  * - policy: deterministic rules over the model's proposal (refund eligibility, limits, injection).
+ * - approval: a refund the policy allows pauses the run (a LangGraph interrupt) until a person decides.
+ * - deadline: every step but validate stops once the run's agent time is over; the run escalates.
  * - validate: drops unknown citations and builds the result; a model failure anywhere lands here
  *   and becomes an escalation instead of an error.
  */
 export class LangGraphTriageAgent implements TriageAgent {
   private readonly graph;
+  private readonly sessions = new Map<string, RunSession>();
 
   constructor(
     private readonly d: LangGraphTriageAgentDeps,
@@ -92,6 +127,7 @@ export class LangGraphTriageAgent implements TriageAgent {
       .addNode('tool', (state) => this.runTool(state))
       .addNode('decide', (state) => this.decide(state))
       .addNode('policy', (state) => this.policy(state))
+      .addNode('approval', (state) => this.approval(state))
       .addNode('draft', (state) => this.draft(state))
       .addNode('validate', (state) => this.validate(state))
       .addEdge(START, 'guard')
@@ -100,19 +136,48 @@ export class LangGraphTriageAgent implements TriageAgent {
       .addConditionalEdges('research', (state) => this.afterResearch(state), ['tool', 'decide', 'policy', 'validate'])
       .addEdge('tool', 'research')
       .addConditionalEdges('decide', (state) => (state.failure ? 'validate' : 'policy'), ['policy', 'validate'])
-      .addConditionalEdges('policy', (state) => (state.injection?.suspected ? 'validate' : 'draft'), ['draft', 'validate'])
+      .addConditionalEdges('policy', (state) => this.afterPolicy(state), ['approval', 'draft', 'validate'])
+      .addConditionalEdges('approval', (state) => (state.refundRejected ? 'validate' : 'draft'), ['draft', 'validate'])
       .addEdge('draft', 'validate')
       .addEdge('validate', END)
-      .compile();
+      .compile({ checkpointer: d.checkpointer });
   }
 
   async run(req: RunTriageAgentRequest): Promise<RunTriageAgentResponse> {
-    const final = await this.graph.invoke(
-      { runId: req.runId, ticket: req.ticket },
-      { recursionLimit: 2 * this.p.maxToolCalls + 20 },
+    return this.invoke(req.runId, req.onStep, 0, (config) => this.graph.invoke({ runId: req.runId, ticket: req.ticket }, config));
+  }
+
+  async resume(req: ResumeTriageAgentRequest): Promise<ResumeTriageAgentResponse> {
+    const { values } = await this.graph.getState(this.threadOf(req.runId));
+    return this.invoke(req.runId, req.onStep, values.agentMs, (config) =>
+      this.graph.invoke(new Command({ resume: req.decision }), config),
     );
-    if (!final.result) throw new Error('Triage graph ended without a result');
-    return { result: final.result, trace: final.trace };
+  }
+
+  /** Runs the graph until it pauses for approval or ends, within what is left of the deadline. */
+  private async invoke(
+    runId: string,
+    onStep: TriageStepListener,
+    spentMs: number,
+    start: (config: ReturnType<LangGraphTriageAgent['threadOf']> & { recursionLimit: number }) => Promise<State>,
+  ): Promise<TriageAgentOutcome> {
+    const deadline = new AbortController();
+    const timer = setTimeout(() => deadline.abort(), this.p.deadlineMs - spentMs);
+    this.sessions.set(runId, { signal: deadline.signal, onStep, startedAt: this.d.clock.now().instant.getTime(), spentMs });
+    try {
+      const final = await start({ ...this.threadOf(runId), recursionLimit: 2 * this.p.maxToolCalls + 20 });
+      const paused = (await this.graph.getState(this.threadOf(runId))).next.length > 0;
+      if (paused) return { status: 'awaiting_approval', result: null, trace: final.trace };
+      if (!final.result) throw new Error('Triage graph ended without a result');
+      return { status: 'done', result: final.result, trace: final.trace };
+    } finally {
+      clearTimeout(timer);
+      this.sessions.delete(runId);
+    }
+  }
+
+  private threadOf(runId: string) {
+    return { configurable: { thread_id: runId } };
   }
 
   // ---- nodes ----
@@ -126,8 +191,8 @@ export class LangGraphTriageAgent implements TriageAgent {
   }
 
   private async classify(state: State): Promise<Update> {
-    const { output, entry, error } = await this.traced(state, 'classify', null, { ticket: state.ticket }, () =>
-      this.d.model.classify({ ticket: state.ticket }),
+    const { output, entry, error } = await this.traced(state, 'classify', null, { ticket: state.ticket }, (signal) =>
+      this.d.model.classify({ ticket: state.ticket, signal }),
     );
     return { classification: output, failure: error, trace: [entry] };
   }
@@ -142,7 +207,7 @@ export class LangGraphTriageAgent implements TriageAgent {
       'research',
       null,
       { observations: state.observations.length },
-      () => this.d.model.nextStep({ ticket: state.ticket, classification, observations: state.observations }),
+      (signal) => this.d.model.nextStep({ ticket: state.ticket, classification, observations: state.observations, signal }),
     );
     const step = output?.step;
     // A small model may ask for the same call again instead of moving on: a repeat ends research.
@@ -167,22 +232,47 @@ export class LangGraphTriageAgent implements TriageAgent {
 
   private async decide(state: State): Promise<Update> {
     const classification = this.required(state.classification);
-    const { output, entry, error } = await this.traced(state, 'decide', null, { observations: state.observations.length }, () =>
-      this.d.model.decide({ ticket: state.ticket, classification, observations: state.observations }),
+    const { output, entry, error } = await this.traced(state, 'decide', null, { observations: state.observations.length }, (signal) =>
+      this.d.model.decide({ ticket: state.ticket, classification, observations: state.observations, signal }),
     );
     return { proposal: output, failure: error, trace: [entry] };
   }
 
   private async policy(state: State): Promise<Update> {
-    const { output, entry } = await this.traced(state, 'policy', null, { proposal: state.proposal }, () =>
+    const { output, entry, error } = await this.traced(state, 'policy', null, { proposal: state.proposal }, () =>
       this.applyPolicy(state),
     );
-    return { decision: output, trace: [entry] };
+    const session = this.session(state.runId);
+    const agentMs = session.spentMs + this.d.clock.now().instant.getTime() - session.startedAt;
+    return { decision: output, failure: error, agentMs, trace: [entry] };
+  }
+
+  /** Pauses until a person approves or rejects the refund; LangGraph runs the node again on resume. */
+  private async approval(state: State): Promise<Update> {
+    const decision = this.required(state.decision);
+    const answer: ApprovalDecision = interrupt({ refund: decision.refund });
+    const entry: TraceEntry = {
+      step: 'approval',
+      tool: null,
+      input: { refund: decision.refund },
+      output: { decision: answer },
+      error: null,
+      startedAt: this.d.clock.now().instant.toISOString(),
+      durationMs: 0,
+    };
+    this.d.logger.info({ message: 'agent step', context: { runId: state.runId, step: 'approval', decision: answer } });
+    await this.session(state.runId).onStep(entry);
+    if (answer === 'approve') return { trace: [entry] };
+    return {
+      decision: { ...decision, action: 'escalate', reasons: [...decision.reasons, 'Refund rejected by a person'], refund: null },
+      refundRejected: true,
+      trace: [entry],
+    };
   }
 
   private async draft(state: State): Promise<Update> {
     const decision = this.required(state.decision);
-    const { output, entry, error } = await this.traced(state, 'draft', null, { action: decision.action }, () =>
+    const { output, entry, error } = await this.traced(state, 'draft', null, { action: decision.action }, (signal) =>
       this.d.model.draft({
         ticket: state.ticket,
         classification: this.required(state.classification),
@@ -190,6 +280,7 @@ export class LangGraphTriageAgent implements TriageAgent {
         reasons: decision.reasons,
         refund: decision.refund,
         observations: state.observations,
+        signal,
       }),
     );
     return { replyDraft: output?.replyDraft ?? null, failure: error, trace: [entry] };
@@ -205,6 +296,11 @@ export class LangGraphTriageAgent implements TriageAgent {
   private afterClassify(state: State): 'research' | 'policy' | 'validate' {
     if (state.failure) return 'validate';
     return state.injection?.suspected ? 'policy' : 'research';
+  }
+
+  private afterPolicy(state: State): 'approval' | 'draft' | 'validate' {
+    if (state.failure || state.injection?.suspected) return 'validate';
+    return state.decision?.action === 'propose_refund' ? 'approval' : 'draft';
   }
 
   private afterResearch(state: State): 'tool' | 'decide' | 'policy' | 'validate' {
@@ -281,6 +377,7 @@ export class LangGraphTriageAgent implements TriageAgent {
   private async buildResult(state: State): Promise<TriageResult> {
     const classification = state.classification ?? { category: 'other', priority: 'normal', issueSummary: '' };
     const decision = state.failure ? this.escalation([state.failure], false) : this.required(state.decision);
+    const deadlineReached = state.failure === this.deadlineReason();
     const { ids: citedArticles } = await this.d.knowledgeBase.filterKnown({ ids: decision.citedArticles });
     const result: TriageResult = {
       category: classification.category,
@@ -294,7 +391,8 @@ export class LangGraphTriageAgent implements TriageAgent {
         injectionSuspected: state.injection?.suspected ?? false,
         toolLimitReached: state.toolLimitReached,
         policyOverride: decision.policyOverride,
-        modelFailure: state.failure !== null,
+        modelFailure: state.failure !== null && !deadlineReached,
+        deadlineReached,
       },
       summary: '',
     };
@@ -319,23 +417,28 @@ export class LangGraphTriageAgent implements TriageAgent {
   // ---- tracing ----
 
   /**
-   * Runs one step, measures it, logs it and turns it into a trace entry. A failure of the step is
-   * caught: the entry carries the error and the caller routes to an escalation.
+   * Runs one step, measures it, logs it, turns it into a trace entry and reports it. A failure of the
+   * step is caught: the entry carries the error and the caller routes to an escalation. Past the
+   * deadline a step does not start, and one in flight is given up; only validate always runs.
    */
   private async traced<T>(
     state: State,
     step: TraceStep,
     tool: string | null,
     input: unknown,
-    work: () => Promise<T> | T,
+    work: (signal: AbortSignal) => Promise<T> | T,
   ): Promise<{ output: T | null; entry: TraceEntry; error: string | null }> {
+    const session = this.session(state.runId);
+    const bounded = step !== 'validate';
     const started = this.d.clock.now().instant;
     let output: T | null = null;
     let error: string | null = null;
     try {
-      output = await work();
+      if (bounded && session.signal.aborted) throw new Error(this.deadlineReason());
+      const result = Promise.resolve(work(session.signal));
+      output = bounded ? await Promise.race([this.whenAborted(session.signal), result]) : await result;
     } catch (caught) {
-      error = caught instanceof Error ? caught.message : String(caught);
+      error = bounded && session.signal.aborted ? this.deadlineReason() : caught instanceof Error ? caught.message : String(caught);
     }
     const entry: TraceEntry = {
       step,
@@ -348,7 +451,26 @@ export class LangGraphTriageAgent implements TriageAgent {
     };
     const log = error ? this.d.logger.warn.bind(this.d.logger) : this.d.logger.info.bind(this.d.logger);
     log({ message: 'agent step', context: { runId: state.runId, step, tool, durationMs: entry.durationMs, error } });
+    await session.onStep(entry);
     return { output, entry, error };
+  }
+
+  private whenAborted(signal: AbortSignal): Promise<never> {
+    return new Promise((_, reject) => {
+      const stop = () => reject(new Error(this.deadlineReason()));
+      if (signal.aborted) stop();
+      else signal.addEventListener('abort', stop, { once: true });
+    });
+  }
+
+  private deadlineReason(): string {
+    return `Run stopped at its deadline of ${this.p.deadlineMs / 1000} seconds`;
+  }
+
+  private session(runId: string): RunSession {
+    const session = this.sessions.get(runId);
+    if (!session) throw new Error(`No active invocation for run ${runId}`);
+    return session;
   }
 
   private required<T>(value: T | null): T {

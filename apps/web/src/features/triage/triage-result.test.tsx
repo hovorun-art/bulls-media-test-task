@@ -23,6 +23,12 @@ describe('TriageResult', () => {
     expect(screen.getByText('Proposed refund: 89 USD for order A-1002 (needs approval)')).toBeInTheDocument();
   });
 
+  it('shows nothing for a run that has no result yet', () => {
+    const { container } = render(<TriageResult run={aRun({ status: 'running', result: null })} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('Escalation without a draft', () => {
     render(<TriageResult run={aRun({ result: { action: 'escalate', replyDraft: null } })} />);
 
@@ -74,7 +80,13 @@ describe('TriageResult', () => {
   });
 
   it('shows the raised flags only', () => {
-    const flags = { injectionSuspected: true, toolLimitReached: false, policyOverride: true, modelFailure: false };
+    const flags = {
+      injectionSuspected: true,
+      toolLimitReached: false,
+      policyOverride: true,
+      modelFailure: false,
+      deadlineReached: false,
+    };
 
     render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
 
@@ -82,5 +94,20 @@ describe('TriageResult', () => {
     expect(screen.getByText('Policy overrode the model')).toBeInTheDocument();
     expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
     expect(screen.queryByText('Tool call limit reached')).not.toBeInTheDocument();
+    expect(screen.queryByText('Run deadline reached')).not.toBeInTheDocument();
+  });
+
+  it('shows the deadline flag', () => {
+    const flags = {
+      injectionSuspected: false,
+      toolLimitReached: false,
+      policyOverride: false,
+      modelFailure: false,
+      deadlineReached: true,
+    };
+
+    render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
+
+    expect(screen.getByText('Run deadline reached')).toBeInTheDocument();
   });
 });

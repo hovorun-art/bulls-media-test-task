@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { RunSchema } from '@triage/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { aTicket as aBaseTicket, TriageUnderTest } from './triage-under-test';
+import { aTicket as aBaseTicket, aStoredRun, TriageUnderTest } from './triage-under-test';
 
 const aTicketAbout = (subject: string) => aBaseTicket({ subject });
 
@@ -14,12 +14,35 @@ describe('GET /api/runs', () => {
 
   it('Triaged ticket can be opened by its run id', async () => {
     service.scriptReply();
-    const triaged = await service.triage(aTicketAbout('Lamp'));
+    const id = await service.startTriage(aTicketAbout('Lamp'));
+    await service.waitForRun(id, (run) => run.status === 'done');
 
-    const response = await service.getRun(triaged.id);
+    const response = await service.getRun(id);
 
     expect(response.status).toBe(200);
-    expect(RunSchema.parse(await response.json())).toEqual(triaged);
+    const run = RunSchema.parse(await response.json());
+    expect(run).toMatchObject({ id, status: 'done', ticket: aTicketAbout('Lamp'), result: { action: 'reply' } });
+    expect(run.trace.map((entry) => entry.step)).toEqual(['guard', 'classify', 'research', 'decide', 'policy', 'draft', 'validate']);
+  });
+
+  it('Running run shows the trace so far', async () => {
+    service.scriptHeldResearch();
+    const id = await service.startTriage(aTicketAbout('Lamp'));
+
+    const run = await service.waitForRun(id, (stored) => stored.trace.length === 2);
+
+    expect(run.status).toBe('running');
+    expect(run.trace.map((entry) => entry.step)).toEqual(['guard', 'classify']);
+    expect(run.result).toBeNull();
+  });
+
+  it('Running run is listed with its status', async () => {
+    service.scriptModelNeverAnswers();
+    const id = await service.startTriage(aTicketAbout('Lamp'));
+
+    const { runs } = await service.listRuns();
+
+    expect(runs).toEqual([expect.objectContaining({ id, status: 'running', category: null, action: null })]);
   });
 
   it('Runs are listed newest first', async () => {
@@ -31,8 +54,8 @@ describe('GET /api/runs', () => {
     const { runs } = await service.listRuns();
 
     expect(runs).toMatchObject([
-      { id: second.id, subject: 'Second', category: 'order_status', action: 'reply' },
-      { id: first.id, subject: 'First', category: 'order_status', action: 'reply' },
+      { id: second.id, subject: 'Second', status: 'done', category: 'order_status', action: 'reply' },
+      { id: first.id, subject: 'First', status: 'done', category: 'order_status', action: 'reply' },
     ]);
   });
 
@@ -47,7 +70,7 @@ describe('GET /api/runs', () => {
     expect(runs.map((run) => run.id)).toEqual([second.id]);
   });
 
-  it.each(['0', '101', 'abc'])('rejects limit=%s', async (limit) => {
+  it.each(['0', '101', '1.5', 'abc'])('rejects limit=%s', async (limit) => {
     const response = await service.get(`/api/runs?limit=${limit}`);
 
     const error = await service.errorOf(response, 400);
@@ -65,11 +88,38 @@ describe('GET /api/runs', () => {
 
     const response = await service.getRun(id);
 
-
     expect(await service.errorOf(response, 404)).toEqual({
       code: 'RUN_NOT_FOUND',
       message: `Run ${id} not found`,
       details: { id },
     });
+  });
+
+  it('answers a run id that is not a UUID with 404', async () => {
+    const response = await service.getRun('not-a-uuid');
+
+    expect((await service.errorOf(response, 404)).code).toBe('RUN_NOT_FOUND');
+  });
+
+  it('Running run is closed on start', async () => {
+    const left = aStoredRun({ status: 'running' });
+    await service.store(left);
+
+    await service.restart();
+
+    const run = RunSchema.parse(await (await service.getRun(left.id)).json());
+    expect(run).toMatchObject({
+      status: 'done',
+      result: { action: 'escalate', reasons: ['Service restarted during the run'] },
+    });
+  });
+
+  it('Paused run is kept on start', async () => {
+    service.scriptRefundDecision('A-1002');
+    const paused = await service.triage(aBaseTicket({ orderId: 'A-1002', body: 'Refund please' }), 'awaiting_approval');
+
+    await service.restart();
+
+    expect(RunSchema.parse(await (await service.getRun(paused.id)).json()).status).toBe('awaiting_approval');
   });
 });

@@ -1,18 +1,46 @@
-import type { Ticket, TraceEntry, TriageResult } from '@triage/contracts';
+import type { ApprovalDecision, Ticket, TraceEntry, TriageResult } from '@triage/contracts';
+
+/** Called with each trace entry as soon as its step ends. */
+export type TriageStepListener = (entry: TraceEntry) => Promise<void>;
+
+/** Where the agent stopped: paused for a person's approval of a refund, or done with a result. */
+export type TriageAgentOutcome =
+  | { status: 'awaiting_approval'; result: null; trace: TraceEntry[] }
+  | { status: 'done'; result: TriageResult; trace: TraceEntry[] };
 
 export interface RunTriageAgentRequest {
   runId: string;
   ticket: Ticket;
+  onStep: TriageStepListener;
 }
 
-export interface RunTriageAgentResponse {
+export type RunTriageAgentResponse = TriageAgentOutcome;
+
+export interface ResumeTriageAgentRequest {
+  runId: string;
+  decision: ApprovalDecision;
+  onStep: TriageStepListener;
+}
+
+export type ResumeTriageAgentResponse = TriageAgentOutcome;
+
+export interface EscalateTriageAgentRequest {
+  reason: string;
+}
+
+export interface EscalateTriageAgentResponse {
   result: TriageResult;
-  trace: TraceEntry[];
 }
 
-/** The multi-step agent: never throws for model failures, it escalates instead. */
+/**
+ * The multi-step agent: never throws for model failures, it escalates instead. A refund it would
+ * propose pauses the run until `resume` brings a person's decision; the pause survives a restart.
+ */
 export interface TriageAgent {
   run(req: RunTriageAgentRequest): Promise<RunTriageAgentResponse>;
+  resume(req: ResumeTriageAgentRequest): Promise<ResumeTriageAgentResponse>;
+  /** The result of a run that could not finish (an unexpected error, a restart), escalated for the reason. */
+  escalate(req: EscalateTriageAgentRequest): EscalateTriageAgentResponse;
 }
 
 export const TRIAGE_AGENT = Symbol('TriageAgent');

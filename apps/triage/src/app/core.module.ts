@@ -31,7 +31,10 @@ export class CoreModule {
           useFactory: () => {
             const path = resolve(APP_ROOT, options.config.DATABASE_PATH);
             mkdirSync(dirname(path), { recursive: true });
-            return new DatabaseSync(path);
+            const database = new DatabaseSync(path);
+            // The checkpointer of paused runs opens the same file: let readers and a writer work side by side.
+            database.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
+            return database;
           },
         },
         {

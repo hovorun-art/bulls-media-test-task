@@ -15,6 +15,7 @@
     "@langchain/anthropic": "^1.6.4",
     "@langchain/core": "^1.4.0",
     "@langchain/langgraph": "^1.7.4",
+    "@langchain/langgraph-checkpoint-sqlite": "^1.1.0",
     "@langchain/ollama": "*",
     "@nestjs/common": "^12.5.0",
     "@nestjs/core": "^12.5.0",

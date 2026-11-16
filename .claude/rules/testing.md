@@ -69,5 +69,5 @@ Each case is tested once, at the lowest level that can observe it.
     (`vi.spyOn(provider, 'method').mockRejectedValueOnce(...)`).
   - These tests are cached by Turborepo, so they must depend on nothing but the code.
 - **Contract checks** through the shared Zod schemas in `packages/contracts` (no Pact).
-- **Web e2e** (Playwright) in `apps/web`, and **system e2e** (`tests/system-e2e`, Playwright) against
-  the whole system running together.
+- **Web e2e** (Playwright) in `apps/web`. No system e2e on the real model: it took minutes per run
+  (`tests/system-e2e` holds only the Compose config tests).

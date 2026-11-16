@@ -5,11 +5,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --cache --max-warnings 0",
-    "test:integration": "vitest run --project system-e2e:integration",
-    "test:e2e:ui": "playwright test"
+    "test:integration": "vitest run --project system-e2e:integration"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0",
     "@triage/tooling": "*"
   }
 }

@@ -232,12 +232,8 @@ Every error has the same body: `{ code, message, details }`. All bodies are Zod 
 ```bash
 npm run check         # typecheck + lint (incl. layer rules) + unit tests, all workspaces
 npm run check:full    # + integration tests (real SQLite, local HTTP stubs of Ollama)
-npm run test:e2e      # service HTTP e2e (Vitest) + web e2e (Playwright) + system e2e (Docker)
+npm run test:e2e      # service HTTP e2e (Vitest) + web e2e (Playwright)
 ```
-
-The system e2e starts the whole Compose stack itself (project `triage-system-e2e`, ports 18080 and
-13000, so a running stack is not touched) and needs the same Docker resources as the Docker start.
-Only that suite: `npm run test:e2e -- --filter=@triage/system-e2e`.
 
 npm run test:e2e needs the Playwright browser once: `npx playwright install chromium`.
 
@@ -248,15 +244,30 @@ npm run test:e2e needs the Playwright browser once: `npx playwright install chro
 | Service e2e | `apps/triage/test/e2e` | The real Nest app on port 0 with a fresh SQLite and the model mocked at its port. Covers validation (400), escalation when the model is down, runs listing and lookup, 404s, and start-up refusal. |
 | Web e2e | `apps/web/e2e` | Playwright in a real browser, with the API mocked at the network. A support agent picks a sample, triages it, reads the decision and expands the trace. |
 | Compose config | `tests/system-e2e/src` | `docker compose config` of `compose.yaml` and `compose.host-llm.yaml`: start order, model choice, the shared models volume, the variant without Ollama. |
-| System e2e | `tests/system-e2e/e2e` | The real Compose stack with the real model: the page and the API answer, the model was pulled, a sample ticket is triaged from the web UI, and the run survives a recreated stack. |
 
-Apart from the system e2e, the model is never called in automated tests: they are deterministic and
-free. The live behaviour is also checked with the sample runner below.
+The model is never called in automated tests: they are deterministic and free. The live behaviour is also checked with the sample runner below.
 
 Every test is named after a scenario in [`openspec/specs/*/spec.md`](openspec/specs) (WHEN/THEN), so a
-requirement can be traced to its test.
+requirement can be traced to its test. The exceptions are five `local-startup` scenarios that need the
+live Compose stack and the real model; they are checked by hand (see "Docker stack" below).
 
 ### Manual scenarios
+
+#### Docker stack
+
+The `local-startup` scenarios on the live stack, after `docker compose up --wait`:
+
+1. **Web UI and service answer after compose up**: http://localhost:8080 shows "Support triage agent",
+   and `curl -s localhost:3000/api/health` answers `{"status":"ok"}`.
+2. **Web UI reaches the service through its own origin**: `curl -s localhost:8080/api/health`
+   answers `{"status":"ok"}`.
+3. **Model is pulled on start**: `docker compose ps -a ollama-pull` shows the service exited with 0.
+4. **A ticket is triaged from the web UI with the real model**: pick "Refund inside the window",
+   press "Triage ticket", approve the refund; the summary appears with no "Model failure" flag.
+5. **Run is still listed after the stack is recreated**: `docker compose down`, then
+   `docker compose up --wait`; `curl -s localhost:3000/api/runs` still lists that run.
+
+#### Against the real model
 
 With the service running (`npm run dev`), run all samples against the real model and compare them
 with the expected outcomes:

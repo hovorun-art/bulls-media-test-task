@@ -1,9 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { server } from '../../test-server';
-import { aRun, renderWithQuery } from '../../test-utils';
+import { renderWithQuery } from '../../test-utils';
 import { TicketForm } from './ticket-form';
 
 describe('TicketForm', () => {
@@ -55,7 +56,7 @@ describe('TicketForm', () => {
     server.use(
       http.post('*/api/triage', async ({ request }) => {
         sent = await request.json();
-        return HttpResponse.json(aRun());
+        return HttpResponse.json({ id: randomUUID() }, { status: 202 });
       }),
     );
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
@@ -73,7 +74,7 @@ describe('TicketForm', () => {
     server.use(
       http.post('*/api/triage', async ({ request }) => {
         sent = await request.json();
-        return HttpResponse.json(aRun());
+        return HttpResponse.json({ id: randomUUID() }, { status: 202 });
       }),
     );
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
@@ -90,7 +91,7 @@ describe('TicketForm', () => {
     server.use(
       http.post('*/api/triage', () =>
         HttpResponse.json({ code: 'VALIDATION_FAILED', message: 'Invalid input', details: {} }, { status: 400 }), { once: true }),
-      http.post('*/api/triage', () => HttpResponse.json(aRun())),
+      http.post('*/api/triage', () => HttpResponse.json({ id: randomUUID() }, { status: 202 })),
     );
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Message'), 'Lamp');
@@ -102,7 +103,7 @@ describe('TicketForm', () => {
     await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
-  it('disables the button while the agent works', async () => {
+  it('disables the button while the ticket is sent', async () => {
     server.use(http.post('*/api/triage', () => new Promise<Response>(() => undefined)));
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
@@ -110,16 +111,16 @@ describe('TicketForm', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
-    expect(await screen.findByRole('button', { name: 'Triaging… a local model can take a minute or two' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Sending…' })).toBeDisabled();
   });
 
-  it('sends the ticket without an empty order id and hands over the run', async () => {
-    const run = aRun();
+  it('hands the accepted run id to the page', async () => {
+    const id = randomUUID();
     let sent: unknown;
     server.use(
       http.post('*/api/triage', async ({ request }) => {
         sent = await request.json();
-        return HttpResponse.json(run);
+        return HttpResponse.json({ id }, { status: 202 });
       }),
     );
     const onTriaged = vi.fn();
@@ -130,7 +131,7 @@ describe('TicketForm', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
-    await vi.waitFor(() => expect(onTriaged).toHaveBeenCalledWith(run));
+    await vi.waitFor(() => expect(onTriaged).toHaveBeenCalledWith(id));
     expect(sent).toEqual({ email: 'anna@example.com', subject: 'Lamp', body: 'Where is my lamp?' });
   });
 });

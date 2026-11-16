@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
@@ -6,7 +7,7 @@ import { server } from '../../test-server';
 import { aRunSummary, renderWithQuery } from '../../test-utils';
 import { RunHistory } from './run-history';
 
-const RUN_ID = crypto.randomUUID();
+const RUN_ID = randomUUID();
 
 const aSummary = (overrides: Parameters<typeof aRunSummary>[0] = {}) => aRunSummary({ id: RUN_ID, ...overrides });
 
@@ -19,6 +20,26 @@ describe('RunHistory', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Laptop refund Escalate to a human/ }));
 
     expect(onSelect).toHaveBeenCalledWith(RUN_ID);
+  });
+
+  it('Running run shows its status in the history', async () => {
+    server.use(http.get('*/api/runs', () => HttpResponse.json({ runs: [aSummary({ status: 'running', category: null, action: null })] })));
+
+    renderWithQuery(<RunHistory selectedId={null} onSelect={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: /Laptop refund Running/ })).toBeInTheDocument();
+  });
+
+  it('shows a paused run as awaiting approval', async () => {
+    server.use(
+      http.get('*/api/runs', () =>
+        HttpResponse.json({ runs: [aSummary({ status: 'awaiting_approval', category: null, action: null })] }),
+      ),
+    );
+
+    renderWithQuery(<RunHistory selectedId={null} onSelect={vi.fn()} />);
+
+    expect(await screen.findByRole('button', { name: /Laptop refund Awaiting approval/ })).toBeInTheDocument();
   });
 
   it('says when there are no runs yet', async () => {

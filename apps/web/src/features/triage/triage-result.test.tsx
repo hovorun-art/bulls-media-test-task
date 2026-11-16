@@ -23,6 +23,12 @@ describe('TriageResult', () => {
     expect(screen.getByText('Proposed refund: 89 USD for order A-1002 (needs approval)')).toBeInTheDocument();
   });
 
+  it('shows nothing for a run that has no result yet', () => {
+    const { container } = render(<TriageResult run={aRun({ status: 'running', result: null })} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('Escalation without a draft', () => {
     render(<TriageResult run={aRun({ result: { action: 'escalate', replyDraft: null } })} />);
 
@@ -73,14 +79,29 @@ describe('TriageResult', () => {
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
-  it('shows the raised flags only', () => {
-    const flags = { injectionSuspected: true, toolLimitReached: false, policyOverride: true, modelFailure: false };
+  it.each([
+    ['injectionSuspected', 'Possible prompt injection'],
+    ['toolLimitReached', 'Tool call limit reached'],
+    ['policyOverride', 'Policy overrode the model'],
+    ['modelFailure', 'Model failure'],
+    ['deadlineReached', 'Run deadline reached'],
+  ])('shows the flag %s as "%s"', (flag, label) => {
+    const flags = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
+
+    render(<TriageResult run={aRun({ result: { action: 'escalate', flags: { ...flags, [flag]: true } } })} />);
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it('shows no flag when none is raised', () => {
+    const flags = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
 
     render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
 
-    expect(screen.getByText('Possible prompt injection')).toBeInTheDocument();
-    expect(screen.getByText('Policy overrode the model')).toBeInTheDocument();
-    expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Possible prompt injection')).not.toBeInTheDocument();
     expect(screen.queryByText('Tool call limit reached')).not.toBeInTheDocument();
+    expect(screen.queryByText('Policy overrode the model')).not.toBeInTheDocument();
+    expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Run deadline reached')).not.toBeInTheDocument();
   });
 });

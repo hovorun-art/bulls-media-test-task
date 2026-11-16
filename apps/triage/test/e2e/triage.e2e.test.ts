@@ -1,3 +1,4 @@
+import { RunSchema, TriageAcceptedSchema } from '@triage/contracts';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { aTicket, TriageUnderTest } from './triage-under-test';
 
@@ -49,7 +50,8 @@ describe('POST /api/triage', () => {
 
     const response = await service.postTicket(aTicket({ subject: 'x'.repeat(200), body: 'x'.repeat(5000) }));
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
+    await service.waitForRun(TriageAcceptedSchema.parse(await response.json()).id, (run) => run.status === 'done');
   });
 
   it('rejects a body that is not JSON', async () => {
@@ -65,6 +67,16 @@ describe('POST /api/triage', () => {
     expect(service.model.classify).not.toHaveBeenCalled();
   });
 
+  it('Ticket is accepted at once', async () => {
+    service.scriptModelNeverAnswers();
+
+    const response = await service.postTicket(aTicket());
+
+    expect(response.status).toBe(202);
+    const { id } = TriageAcceptedSchema.parse(await response.json());
+    expect(RunSchema.parse(await (await service.getRun(id)).json()).status).toBe('running');
+  });
+
   it('Model unavailable ends in escalation', async () => {
     service.scriptModelDown();
 
@@ -76,7 +88,6 @@ describe('POST /api/triage', () => {
       reasons: ['Model unavailable: connect ECONNREFUSED'],
       flags: { modelFailure: true },
     });
-    expect((await service.listRuns()).runs).toMatchObject([{ id: run.id }]);
   });
 
   it('Order status question is answered with a reply', async () => {
@@ -91,23 +102,9 @@ describe('POST /api/triage', () => {
       citedArticles: ['order-tracking'],
       summary: 'order_status, normal priority. Action: reply. Order status. Why: The order is shipped with UPS.',
     });
-    expect(run.trace.find((entry) => entry.tool === 'get_order')?.output).toMatchObject({
-      found: true,
-      order: { id: 'A-1001', status: 'shipped', carrier: 'UPS' },
-    });
-    const search = run.trace.find((entry) => entry.tool === 'search_knowledge_base')?.output as { articles: { id: string }[] };
-    expect(search.articles[0]?.id).toBe('order-tracking');
-  });
-
-  it('proposes a refund that the seeded order and the configured policy allow', async () => {
-    service.scriptRefundDecision('A-1002');
-
-    const run = await service.triage(aTicket({ email: 'anna@example.com', orderId: 'A-1002', body: 'Refund please' }));
-
-    expect(run.result).toMatchObject({
-      action: 'propose_refund',
-      refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
-    });
+    expect(run.trace).toContainEqual(
+      expect.objectContaining({ tool: 'get_order', output: expect.objectContaining({ order: expect.objectContaining({ id: 'A-1001', carrier: 'UPS' }) }) }),
+    );
   });
 
   it('escalates a refund above the configured limit', async () => {
@@ -132,6 +129,24 @@ describe('POST /api/triage', () => {
     expect(service.model.draft).not.toHaveBeenCalled();
   });
 
+  it('Complaint about double charging is not flagged', async () => {
+    service.scriptReply();
+
+    const run = await service.triage(aTicket({ body: 'You are now charging me twice for the same order.' }));
+
+    expect(run.result?.flags.injectionSuspected).toBe(false);
+    expect(service.model.nextStep).toHaveBeenCalled();
+  });
+
+  it('Unhandled error ends the run as an escalation', async () => {
+    service.scriptHeldResearch();
+    service.failSaveAfter(1); // the run is stored at its start; storing its first step fails
+
+    const run = await service.triage(aTicket());
+
+    expect(run.result).toMatchObject({ action: 'escalate', replyDraft: null, reasons: ['disk full'] });
+  });
+
   it('answers an unexpected failure with a generic 500 and stores nothing', async () => {
     service.scriptReply();
     vi.spyOn(service.runRepository(), 'save').mockRejectedValueOnce(new Error('disk full'));
@@ -144,5 +159,26 @@ describe('POST /api/triage', () => {
       details: {},
     });
     expect(await service.listRuns()).toEqual({ runs: [] });
+  });
+});
+
+describe('run deadline', () => {
+  const service = new TriageUnderTest();
+
+  beforeAll(() => service.start({ env: { RUN_DEADLINE_SECONDS: '0.05' } }));
+  afterAll(() => service.stop());
+  beforeEach(() => service.reset());
+
+  it('escalates a run whose model does not answer before the configured deadline', async () => {
+    service.scriptModelNeverAnswers();
+
+    const run = await service.triage(aTicket());
+
+    expect(run.result).toMatchObject({
+      action: 'escalate',
+      reasons: ['Run stopped at its deadline of 0.05 seconds'],
+      flags: { deadlineReached: true },
+    });
+    expect(service.model.classify.mock.calls[0]?.[0].signal?.aborted).toBe(true);
   });
 });

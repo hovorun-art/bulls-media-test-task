@@ -45,6 +45,7 @@ export const TriageFlagsSchema = z.object({
   toolLimitReached: z.boolean(),
   policyOverride: z.boolean(),
   modelFailure: z.boolean(),
+  deadlineReached: z.boolean(),
 });
 export type TriageFlags = z.infer<typeof TriageFlagsSchema>;
 
@@ -61,7 +62,17 @@ export const TriageResultSchema = z.object({
 });
 export type TriageResult = z.infer<typeof TriageResultSchema>;
 
-export const TRACE_STEPS = ['guard', 'classify', 'research', 'tool', 'decide', 'policy', 'draft', 'validate'] as const;
+export const TRACE_STEPS = [
+  'guard',
+  'classify',
+  'research',
+  'tool',
+  'decide',
+  'policy',
+  'approval',
+  'draft',
+  'validate',
+] as const;
 export const TraceStepSchema = z.enum(TRACE_STEPS);
 export type TraceStep = z.infer<typeof TraceStepSchema>;
 

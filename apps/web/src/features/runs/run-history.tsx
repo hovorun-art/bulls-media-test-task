@@ -18,7 +18,11 @@ export function RunHistory({ selectedId, onSelect }: { selectedId: string | null
           <li key={run.id}>
             <button type="button" aria-current={run.id === selectedId} onClick={() => onSelect(run.id)}>
               <span>{run.subject || run.id}</span>{' '}
-              <span className={`badge action-${run.action}`}>{t(`result.actions.${run.action}`)}</span>{' '}
+              {run.action ? (
+                <span className={`badge action-${run.action}`}>{t(`result.actions.${run.action}`)}</span>
+              ) : (
+                <span className="badge">{t(`history.status.${run.status}`)}</span>
+              )}{' '}
               <span className="muted">{new Date(run.createdAt).toLocaleString()}</span>
             </button>
           </li>

@@ -12,11 +12,12 @@
     "body": "Message",
     "orderId": "Order id (optional)",
     "submit": "Triage ticket",
-    "pending": "Triaging… a local model can take a minute or two"
+    "pending": "Sending…"
   },
   "result": {
     "title": "Decision",
     "empty": "Submit a ticket or open a past run to see the agent's decision.",
+    "running": "The agent is working on this ticket… its steps appear in the trace as they happen.",
     "category": "Category",
     "priority": "Priority",
     "action": "Action",
@@ -32,7 +33,8 @@
       "injectionSuspected": "Possible prompt injection",
       "toolLimitReached": "Tool call limit reached",
       "policyOverride": "Policy overrode the model",
-      "modelFailure": "Model failure"
+      "modelFailure": "Model failure",
+      "deadlineReached": "Run deadline reached"
     },
     "actions": {
       "reply": "Reply",
@@ -50,7 +52,19 @@
   },
   "history": {
     "title": "Past runs",
-    "empty": "No runs yet."
+    "empty": "No runs yet.",
+    "status": {
+      "running": "Running",
+      "awaiting_approval": "Awaiting approval",
+      "done": "Done"
+    }
+  },
+  "approval": {
+    "title": "Refund needs your approval",
+    "refund": "The agent would propose a refund of {{amount}} {{currency}} for order {{orderId}}.",
+    "unknownRefund": "The agent would propose a refund.",
+    "approve": "Approve",
+    "reject": "Reject"
   },
   "errors": {
     "generic": "Something went wrong: {{message}}"

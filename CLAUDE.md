@@ -19,13 +19,13 @@ packages/contracts   Zod schemas and inferred types shared by the services and t
 packages/service-kit shared backend pieces bound to the server framework (bootstrap, config,
                      logging, health, error mapping)
 tests/support        test-only helpers for integration and e2e tests
-tests/system-e2e     Playwright suite against the whole system running together
+tests/system-e2e     integration tests of the Docker Compose config (no live stack, no model)
 tooling/             shared tsconfig, ESLint (layer and class rules) and Vitest presets
 ```
 One service, `apps/triage`: owns the triage runs and their traces (SQLite file, `DATABASE_PATH`);
 routes `POST /api/triage`, `GET /api/runs`, `GET /api/runs/:id`, `GET /api/health`. The order store
-and the knowledge base are mock data in `apps/triage/data/`. `tests/support` and `tests/system-e2e`
-do not exist yet: a system e2e would need a live model.
+and the knowledge base are mock data in `apps/triage/data/`. `tests/support` does not exist yet;
+no test runs the live stack or the real model.
 
 OOP with DDD and onion layers for the backends, functional React for the web app. The detailed
 rules live in `.claude/rules/` and load by themselves when you read a file they cover. Read the one
@@ -118,7 +118,7 @@ has one, a new change takes its name from it; the flow works the same without it
 - Every spec scenario (WHEN/THEN) has at least one test that sets up its WHEN and asserts its THEN,
   named after the scenario so the verifier can trace it.
 - Fix the code, not the test. Change a test only when it contradicts the spec, and then say so.
-- E2e tests (per-app `*.e2e.test.ts`, Playwright in `apps/web` and `tests/system-e2e`,
+- E2e tests (per-app `*.e2e.test.ts`, Playwright in `apps/web`,
   `npm run test:e2e`) run only in the main agent: several running stacks at once overload the
   machine. Subagents never run them; they list the e2e files and the main agent runs those.
 - The `test-case-reviewer` subagent gets only test file paths or an area (app or package

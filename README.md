@@ -1,4 +1,4 @@
-# Support Triage Agent (bulls-media-test)
+# Support Triage Agent
 
 An AI agent that triages e-commerce support tickets end to end. It understands a ticket, looks up
 facts with tools, decides what support should do and drafts the reply. A human support agent only

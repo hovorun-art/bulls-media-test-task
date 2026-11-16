@@ -9,6 +9,7 @@ interface ComposeService {
   depends_on?: Record<string, { condition: string }>;
   ports?: { target: number; published: string }[];
   environment?: Record<string, string>;
+  volumes?: { type: string; source: string; target: string }[];
 }
 
 interface ComposeConfig {
@@ -56,6 +57,13 @@ describe('compose.yaml', () => {
 
     expect(config.services.web.depends_on).toMatchObject({ triage: { condition: 'service_healthy' } });
     expect(config.services.triage.depends_on).toBeUndefined();
+  });
+
+  it('Run is still listed after the stack is recreated (database in the named volume)', () => {
+    const config = renderConfig();
+
+    expect(config.services.triage.volumes).toMatchObject([{ type: 'volume', source: 'runs', target: '/var/lib/triage' }]);
+    expect(config.services.triage.environment?.DATABASE_PATH).toBe('/var/lib/triage/runs.sqlite');
   });
 
   it('Default model', () => {

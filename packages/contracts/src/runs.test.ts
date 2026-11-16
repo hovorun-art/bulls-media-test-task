@@ -15,7 +15,7 @@ const aRunSummary = (overrides: Record<string, unknown> = {}) => ({
 const aRun = (overrides: Record<string, unknown> = {}) => ({
   id: randomUUID(),
   createdAt: '2026-11-13T12:00:00.000Z',
-  model: { provider: 'ollama', name: 'qwen3:8b' },
+  model: { provider: 'gemini', name: 'gemini-3.8-flash' },
   ticket: { email: 'anna@example.com', subject: 'Order', body: 'Where is it?' },
   status: 'done',
   result: {

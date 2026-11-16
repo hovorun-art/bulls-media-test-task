@@ -53,7 +53,7 @@ describe('TriageResult', () => {
     expect(screen.getByText('Delivered 5 days ago')).toBeInTheDocument();
     expect(screen.getByText('Amount 89 USD')).toBeInTheDocument();
     expect(screen.getByText(/Cited articles: refund-policy, damaged-items/)).toBeInTheDocument();
-    expect(screen.getByText(/Model: ollama \/ qwen3:8b/)).toBeInTheDocument();
+    expect(screen.getByText(/Model: gemini \/ gemini-3.8-flash/)).toBeInTheDocument();
   });
 
   it('says none when no article is cited', () => {

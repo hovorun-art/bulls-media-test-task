@@ -29,7 +29,7 @@ Owns: compose.yaml, compose.host-llm.yaml, tests/system-e2e/** · Depends on: no
 
 Owns: README.md, .env.example, apps/web/**, packages/contracts/src/runs.test.ts · Depends on: none · Done when: npm run check
 
-- [ ] 3.1 .env.example: `GOOGLE_API_KEY`, `GEMINI_MODEL`; remove LLM_PROVIDER, OLLAMA_*, ANTHROPIC_*; update the Docker notes
-- [ ] 3.2 README.md: Gemini (getting a key at AI Studio, free tier) replaces every Ollama and Anthropic section, the architecture diagram, the test-level table and the code tour; Docker run without model download and without compose.host-llm.yaml
-- [ ] 3.3 Manual checks in README.md for "Web UI and service answer after compose up", "Web UI reaches the service through its own origin" and "A ticket is triaged from the web UI with the real model" (live stack with a real key)
-- [ ] 3.4 Replace `ollama` / `qwen3:8b` with `gemini` / `gemini-3.8-flash` in apps/web/src/test-utils.tsx, apps/web/src/features/triage/triage-result.test.tsx, apps/web/e2e/triage.spec.ts and packages/contracts/src/runs.test.ts
+- [x] 3.1 .env.example: `GOOGLE_API_KEY`, `GEMINI_MODEL`; remove LLM_PROVIDER, OLLAMA_*, ANTHROPIC_*; update the Docker notes
+- [x] 3.2 README.md: Gemini (getting a key at AI Studio, free tier) replaces every Ollama and Anthropic section, the architecture diagram, the test-level table and the code tour; Docker run without model download and without compose.host-llm.yaml
+- [x] 3.3 Manual checks in README.md for "Web UI and service answer after compose up", "Web UI reaches the service through its own origin" and "A ticket is triaged from the web UI with the real model" (live stack with a real key)
+- [x] 3.4 Replace `ollama` / `qwen3:8b` with `gemini` / `gemini-3.8-flash` in apps/web/src/test-utils.tsx, apps/web/src/features/triage/triage-result.test.tsx, apps/web/e2e/triage.spec.ts and packages/contracts/src/runs.test.ts

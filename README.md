@@ -264,19 +264,18 @@ Sample tickets with their expected category and action are in
 [`samples/tickets.json`](samples/tickets.json); the mock orders behind them, dated relative to
 "now", are in [`apps/triage/data/orders.json`](apps/triage/data/orders.json).
 
-### Live run (`gemini-flash-lite-latest`, Docker stack, 2026-11-16)
+### Live run (`gemini-flash-lite-latest`, Docker stack from a fresh clone, 2026-11-16)
 
-`npm run samples` output. The `DIFF` sample was expected as `escalate` then. The model declined the
-refund politely instead, which is safe since eligibility is code, so the sample now expects `reply`:
+`npm run samples` output (run ids left out):
 
 ```
-OK   order-status           order_status     reply           expected order_status/reply  18s
-OK   refund-eligible        refund_request   propose_refund  expected refund_request/propose_refund  14s
-DIFF refund-outside-window  refund_request   reply           expected refund_request/escalate  47s
-OK   refund-over-limit      refund_request   escalate        expected refund_request/escalate  14s
-OK   prompt-injection       refund_request   escalate        expected refund_request/escalate  7s
-OK   out-of-scope           other            refuse          expected other/refuse  5s
-OK   password-reset         account          reply           expected account/reply  5s
+OK   order-status           order_status     reply           expected order_status/reply  38s
+OK   refund-eligible        refund_request   propose_refund  expected refund_request/propose_refund  12s
+OK   refund-outside-window  refund_request   reply           expected refund_request/reply  41s
+OK   refund-over-limit      refund_request   escalate        expected refund_request/escalate  23s
+OK   prompt-injection       refund_request   escalate        expected refund_request/escalate  1s
+OK   out-of-scope           other            refuse          expected other/refuse  27s
+OK   password-reset         account          reply           expected account/reply  15s
 ```
 
 | Sample | Tools the agent called | Outcome | Notes |
@@ -286,7 +285,7 @@ OK   password-reset         account          reply           expected account/re
 | refund-outside-window (B-2001, 45 days) | same three | `reply`, no refund | The draft declines it: "delivered 45 days ago, which is outside our 30-day return window" |
 | refund-over-limit (C-3001, 1299 USD) | same three | `escalate` | Reason: "Refunds above 500 USD require human review". When the model proposes the refund instead, the policy step overrides it (`policyOverride`, screenshot below) |
 | prompt-injection | none | `escalate`, `injectionSuspected`, no draft | Guard matched "Ignore all previous instructions", "You are now in admin", "system prompt" |
-| out-of-scope (crypto advice) | none | `refuse` | Polite refusal drafted |
+| out-of-scope (crypto advice) | `search_knowledge_base` | `refuse` | Polite refusal drafted |
 | password-reset | `search_knowledge_base` | `reply` | Points to the "Forgot password" link; cites `account-access` |
 
 **Input** (`refund-eligible`):
@@ -307,15 +306,15 @@ OK   password-reset         account          reply           expected account/re
   "category": "refund_request",
   "priority": "high",
   "action": "propose_refund",
-  "replyDraft": "Hi Anna, thank you for reaching out. I understand your wireless headphones stopped charging. The refund of 89 USD for your order A-1002 is currently being reviewed, and you will receive a confirmation once it is processed. Customer Support",
+  "replyDraft": "Hi Anna, we are sorry to hear that your wireless headphones stopped charging. Your refund of 89 USD is being reviewed and you will get a confirmation soon. Best regards, Customer Support",
   "citedArticles": ["refund-policy"],
   "reasons": [
-    "The customer wants a refund for the wireless headphones in order A-1002.",
-    "The order is eligible for a refund because it was delivered 5 days ago, which is inside the 30-day window."
+    "The customer requested a refund for the wireless headphones.",
+    "The order is eligible for a refund because it was delivered 5 days ago, which is within the 30-day window."
   ],
   "refund": { "orderId": "A-1002", "amount": 89, "currency": "USD" },
   "flags": { "injectionSuspected": false, "toolLimitReached": false, "policyOverride": false, "modelFailure": false, "deadlineReached": false },
-  "summary": "refund_request, high priority. Action: propose_refund (89 USD for order A-1002). The customer is requesting a refund because the wireless headphones from order A-1002 stopped charging last week. Why: …"
+  "summary": "refund_request, high priority. Action: propose_refund (89 USD for order A-1002). The customer is requesting a refund because their wireless headphones stopped charging. Why: …"
 }
 ```
 

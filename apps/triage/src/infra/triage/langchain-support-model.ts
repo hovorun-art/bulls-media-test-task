@@ -38,7 +38,7 @@ const DecisionOutput = z.object({
 const DraftOutput = z.object({ replyDraft: z.string().min(1) });
 
 export interface LangChainSupportModelDeps {
-  /** Any LangChain chat model with tool calling (ChatOllama, ChatAnthropic), built without retries of its own. */
+  /** Any LangChain chat model with tool calling (ChatGoogleGenerativeAI), built without retries of its own. */
   chatModel: BaseChatModel;
 }
 

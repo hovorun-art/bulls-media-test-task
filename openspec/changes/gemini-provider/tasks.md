@@ -4,15 +4,15 @@
 
 Owns: apps/triage/**, package-lock.json · Depends on: none · Done when: npm run check
 
-- [ ] 1.1 Add `@langchain/google-genai` to apps/triage/package.json; remove `@langchain/ollama` and `@langchain/anthropic`; update package-lock.json
-- [ ] 1.2 Test "Missing Gemini key does not start" and "Old provider settings are ignored" (apps/triage/src/app/config.test.ts); drop the Ollama and Anthropic cases
-- [ ] 1.3 TriageConfigSchema in apps/triage/src/app/config.ts: `GOOGLE_API_KEY` (required, non-empty), `GEMINI_MODEL` (default `gemini-3.8-flash`); remove `LLM_PROVIDER`, `OLLAMA_*`, `ANTHROPIC_*` and the superRefine
-- [ ] 1.4 Test "Rejected Gemini key does not start", "Unknown Gemini model does not start" and "Usable key and model start" at adapter level (apps/triage/src/infra/triage/gemini-model-readiness.int.test.ts, local HTTP stub of GET /v1beta/models/<model>)
-- [ ] 1.5 GeminiModelReadiness (apps/triage/src/infra/triage/gemini-model-readiness.ts, params baseUrl, apiKey, model; ModelUnavailableError with a clear reason); delete ollama-model-readiness.ts and its int test
-- [ ] 1.6 Test "Default Gemini model is recorded" and "Configured Gemini model is recorded" (apps/triage/src/app/triage/triage.module.test.ts: the SUPPORT_MODEL built from the parsed config describes provider "gemini" and the model name)
-- [ ] 1.7 TriageModule.supportModel and modelReadiness in apps/triage/src/app/triage/triage.module.ts: ChatGoogleGenerativeAI (apiKey, model, temperature 0, maxRetries 0) and GeminiModelReadiness, no provider switch; main.ts logs provider "gemini"
-- [ ] 1.8 Rewrite apps/triage/src/infra/triage/langchain-support-model.int.test.ts over the real ChatGoogleGenerativeAI against a local Gemini HTTP stub (same cases: retry, bounded attempts, repair, tool call, abort); if its base URL cannot be set, stub `fetch` and log the deviation in decisions.md
-- [ ] 1.9 Replace provider `ollama` / `qwen3:8b` with `gemini` / `gemini-3.8-flash` in the remaining apps/triage tests and e2e setup (triage-under-test.ts, service.e2e.test.ts, ticket-triage.impl.test.ts, langchain-support-model.test.ts, sqlite-run-repository.int.test.ts) and update the LangChainSupportModelDeps comment
+- [x] 1.1 Add `@langchain/google-genai` to apps/triage/package.json; remove `@langchain/ollama` and `@langchain/anthropic`; update package-lock.json
+- [x] 1.2 Test "Missing Gemini key does not start" and "Old provider settings are ignored" (apps/triage/src/app/config.test.ts); drop the Ollama and Anthropic cases
+- [x] 1.3 TriageConfigSchema in apps/triage/src/app/config.ts: `GOOGLE_API_KEY` (required, non-empty), `GEMINI_MODEL` (default `gemini-3.8-flash`); remove `LLM_PROVIDER`, `OLLAMA_*`, `ANTHROPIC_*` and the superRefine
+- [x] 1.4 Test "Rejected Gemini key does not start", "Unknown Gemini model does not start" and "Usable key and model start" at adapter level (apps/triage/src/infra/triage/gemini-model-readiness.int.test.ts, local HTTP stub of GET /v1beta/models/<model>)
+- [x] 1.5 GeminiModelReadiness (apps/triage/src/infra/triage/gemini-model-readiness.ts, params baseUrl, apiKey, model; ModelUnavailableError with a clear reason); delete ollama-model-readiness.ts and its int test
+- [x] 1.6 Test "Default Gemini model is recorded" and "Configured Gemini model is recorded" (apps/triage/src/app/triage/triage.module.test.ts: the SUPPORT_MODEL built from the parsed config describes provider "gemini" and the model name)
+- [x] 1.7 TriageModule.supportModel and modelReadiness in apps/triage/src/app/triage/triage.module.ts: ChatGoogleGenerativeAI (apiKey, model, temperature 0, maxRetries 0) and GeminiModelReadiness, no provider switch; main.ts logs provider "gemini"
+- [x] 1.8 Rewrite apps/triage/src/infra/triage/langchain-support-model.int.test.ts over the real ChatGoogleGenerativeAI against a local Gemini HTTP stub (same cases: retry, bounded attempts, repair, tool call, abort); if its base URL cannot be set, stub `fetch` and log the deviation in decisions.md
+- [x] 1.9 Replace provider `ollama` / `qwen3:8b` with `gemini` / `gemini-3.8-flash` in the remaining apps/triage tests and e2e setup (triage-under-test.ts, service.e2e.test.ts, ticket-triage.impl.test.ts, langchain-support-model.test.ts, sqlite-run-repository.int.test.ts) and update the LangChainSupportModelDeps comment
 
 ## 2. Compose without model containers
 

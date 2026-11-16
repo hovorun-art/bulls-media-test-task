@@ -30,7 +30,7 @@ const messagesSentTo = (runnable: { invoke: { mock: { calls: unknown[][] } } } |
 const aModel = (chatModel: BaseChatModel) =>
   new LangChainSupportModel(
     { chatModel },
-    { provider: 'ollama', modelName: 'qwen3:8b', maxAttempts: 3, repairAttempts: 2 },
+    { provider: 'gemini', modelName: 'gemini-3.8-flash', maxAttempts: 3, repairAttempts: 2 },
   );
 
 describe('LangChainSupportModel', () => {
@@ -236,6 +236,6 @@ describe('LangChainSupportModel', () => {
   });
 
   it('describes the provider and the model', () => {
-    expect(aModel(mockDeep<BaseChatModel>()).describe()).toEqual({ provider: 'ollama', name: 'qwen3:8b' });
+    expect(aModel(mockDeep<BaseChatModel>()).describe()).toEqual({ provider: 'gemini', name: 'gemini-3.8-flash' });
   });
 });

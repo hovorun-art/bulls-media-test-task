@@ -30,7 +30,7 @@
       "body": "I don't use the coffee grinder anymore and want a refund.",
       "orderId": "B-2001"
     },
-    "expected": { "category": "refund_request", "action": "escalate", "why": "Delivered 45 days ago: outside the 30-day window, so no refund is proposed (policy override if the model asked for one)." }
+    "expected": { "category": "refund_request", "action": "reply", "why": "Delivered 45 days ago: outside the 30-day window, so no refund is proposed; the reply declines it with the policy reason (a refund the model asks for is overridden by the policy and escalated)." }
   },
   {
     "id": "refund-over-limit",

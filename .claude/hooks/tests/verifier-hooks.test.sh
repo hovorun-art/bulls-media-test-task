@@ -126,4 +126,20 @@ else
 fi
 rm -rf "$git_dir"
 
+# The session's project dir is the main checkout; the change lives in the git worktree that is the cwd.
+main_dir=$(mktemp -d)
+worktree_dir=$(mktemp -d)
+mkdir -p "$worktree_dir/openspec/changes/demo"
+git -C "$worktree_dir" init -q
+python3 -c 'import json,sys; print(json.dumps({"agent_type":"change-verifier","stop_hook_active":True,"cwd":sys.argv[1],"last_assistant_message":sys.argv[2]}))' \
+  "$worktree_dir" "$REPORT_TEXT" | CLAUDE_PROJECT_DIR="$main_dir" bash "$HOOK" stop >/dev/null
+actual_verdict=$(head -1 "$worktree_dir/openspec/changes/demo/.verdict" 2>/dev/null)
+if [ "$actual_verdict" = PASS ]; then
+  echo "ok   stop: records the verdict in the worktree the session runs in"
+else
+  echo "FAIL stop: records the verdict in the worktree the session runs in: got '$actual_verdict'"
+  failures=$((failures + 1))
+fi
+rm -rf "$main_dir" "$worktree_dir"
+
 [ "$failures" -eq 0 ] && echo "all passed" || { echo "$failures failed"; exit 1; }

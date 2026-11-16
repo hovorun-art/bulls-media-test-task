@@ -89,4 +89,25 @@ note_case() {
 note_case "a translated label on a ready brief tells the agent to ask again" 'Затвердити бриф demo?' 'Затвердити бриф' note # allow-non-english
 note_case "a question about a brief with items to confirm stays silent" 'Which limit for draft?' '10' silent
 
+# worktree_case <name> <cwd inside the worktree>: the session's project dir is the main checkout, which
+# does not have the change; the change lives in a git worktree that is the hook's cwd.
+worktree_case() {
+  local name="$1" sub="$2" main worktree actual=not
+  main=$(mktemp -d)
+  worktree=$(make_project)
+  git -C "$worktree" init -q
+  python3 -c 'import json,sys; q="Approve the brief of demo?"; print(json.dumps({"cwd":sys.argv[1],"tool_input":{"questions":[{"question":q}]},"tool_response":{"answers":{q:"Approve the brief"}}}))' \
+    "$worktree/$sub" | CLAUDE_PROJECT_DIR="$main" bash "$HOOK" --answer >/dev/null
+  [ -f "$worktree/openspec/changes/demo/.decisions-approved" ] && actual=approved
+  if [ "$actual" = approved ]; then
+    echo "ok   $name"
+  else
+    echo "FAIL $name: expected 'approved', got '$actual'"
+    failures=$((failures + 1))
+  fi
+  rm -rf "$main" "$worktree"
+}
+worktree_case "approves a change in the worktree the session runs in" .
+worktree_case "approves a change when the cwd is a folder inside the worktree" openspec/changes/demo
+
 [ "$failures" -eq 0 ] && echo "all passed" || { echo "$failures failed"; exit 1; }

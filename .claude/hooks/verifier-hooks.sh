@@ -30,7 +30,19 @@ VERIFIER = 'change-verifier'
 # A hand-back counts only when the verifier itself makes it; the main agent's calls carry no type.
 if (d.get('agent_type') or ('' if mode == 'handback' else VERIFIER)) != VERIFIER:
     sys.exit(0)
-root = os.environ.get('CLAUDE_PROJECT_DIR') or d.get('cwd') or os.getcwd()
+
+
+def project_root():
+    """The checkout the session works in: a worktree's own root, not the project dir it was opened from."""
+    cwd = d.get('cwd') or ''
+    if cwd:
+        out = subprocess.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
+        if out.returncode == 0:
+            return out.stdout.strip()
+    return os.environ.get('CLAUDE_PROJECT_DIR') or cwd or os.getcwd()
+
+
+root = project_root()
 
 
 def git(*args):

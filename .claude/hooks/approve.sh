@@ -18,11 +18,23 @@
 mode="$1"
 input=$(cat)
 MODE="$mode" INPUT="$input" python3 - <<'PY'
-import datetime, hashlib, json, os, re, sys
+import datetime, hashlib, json, os, re, subprocess, sys
 
 mode = os.environ['MODE']
 d = json.loads(os.environ.get('INPUT') or '{}')
-root = os.environ.get('CLAUDE_PROJECT_DIR') or d.get('cwd') or os.getcwd()
+
+
+def project_root():
+    """The checkout the session works in: a worktree's own root, not the project dir it was opened from."""
+    cwd = d.get('cwd') or ''
+    if cwd:
+        out = subprocess.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
+        if out.returncode == 0:
+            return out.stdout.strip()
+    return os.environ.get('CLAUDE_PROJECT_DIR') or cwd or os.getcwd()
+
+
+root = project_root()
 changes = os.path.join(root, 'openspec', 'changes')
 event = 'UserPromptSubmit' if mode == '--prompt' else 'PostToolUse'
 

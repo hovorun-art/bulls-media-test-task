@@ -1,8 +1,8 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Clock } from '@triage/kernel';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
 import { SeededOrderStore } from './seeded-order-store';
 
@@ -21,9 +21,12 @@ const aSeedOrder = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+/** Holds the seed files the tests write; removed after the file. */
+let temporaryRoot = '';
+
 /** A store over a seed file of the given orders, with the clock at 2026-11-13 12:00 UTC. */
 function aStoreOf(orders: unknown[]) {
-  const seedPath = join(mkdtempSync(join(tmpdir(), 'orders-')), 'orders.json');
+  const seedPath = join(mkdtempSync(join(temporaryRoot, 'orders-')), 'orders.json');
   writeFileSync(seedPath, JSON.stringify(orders));
   const clock = mockDeep<Clock>();
   clock.now.mockReturnValueOnce({ instant: new Date('2026-11-13T12:00:00.000Z') });
@@ -31,6 +34,14 @@ function aStoreOf(orders: unknown[]) {
 }
 
 describe('SeededOrderStore', () => {
+  beforeAll(() => {
+    temporaryRoot = mkdtempSync(join(tmpdir(), 'orders-tests-'));
+  });
+
+  afterAll(() => {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  });
+
   it('Order of another customer is not found', async () => {
     const store = aStoreOf([aSeedOrder({ email: 'anna@example.com' })]);
 

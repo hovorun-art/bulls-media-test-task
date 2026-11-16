@@ -7,6 +7,7 @@ import { PinoLogger, ZodConfigParser } from '@triage/service-kit';
 import { pino } from 'pino';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
+import { ModelUnavailableError } from '../../domain/triage/model-unavailable.error';
 import { SUPPORT_MODEL, type SupportModel } from '../../domain/triage/support-model';
 import type { ModelReadiness } from '../../domain/triage/model-readiness';
 import { AppModule } from '../app.module';
@@ -45,6 +46,18 @@ async function describedModelFor(directory: string, env: Record<string, string>)
   }
 }
 
+const A_TICKET = { email: 'anna@example.com', subject: 'Order', body: 'Late' };
+
+/** What Gemini answers when it is overloaded. */
+const anOverloadedAnswer = () =>
+  Response.json({ error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }, { status: 503 });
+
+/** What Gemini answers with a classification that fails the schema. */
+const anInvalidClassification = () =>
+  Response.json({
+    candidates: [{ content: { role: 'model', parts: [{ text: '{"category":"lost_parcel"}' }] }, finishReason: 'STOP', index: 0 }],
+  });
+
 describe('TriageModule', () => {
   let directory = '';
 
@@ -53,6 +66,7 @@ describe('TriageModule', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     rmSync(directory, { recursive: true, force: true });
   });
@@ -79,12 +93,46 @@ describe('TriageModule', () => {
       Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(answer) }] }, finishReason: 'STOP', index: 0 }] }),
     );
 
-    await app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: { email: 'anna@example.com', subject: 'Order', body: 'Late' } });
+    await app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET });
     await app.close();
 
     const [url, init] = fetch.mock.calls[0] ?? [];
     expect(String(url)).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
     expect(new Headers(init?.headers).get('x-goog-api-key')).toBe('test-key');
+  });
+
+  it('calls the model at most MODEL_MAX_ATTEMPTS times when it keeps failing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    const app = await aReadyAppFor(directory, { MODEL_MAX_ATTEMPTS: '2' });
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(anOverloadedAnswer())
+      .mockResolvedValueOnce(anOverloadedAnswer())
+      .mockRejectedValueOnce(new Error('a third call must not be made'));
+
+    const answer = app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET });
+    const outcome = expect(answer).rejects.toThrow(ModelUnavailableError);
+    await vi.runAllTimersAsync();
+
+    await outcome;
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await app.close();
+  });
+
+  it('asks the model for a valid answer again MODEL_REPAIR_ATTEMPTS times', async () => {
+    const app = await aReadyAppFor(directory, { MODEL_REPAIR_ATTEMPTS: '1' });
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(anInvalidClassification())
+      .mockResolvedValueOnce(anInvalidClassification())
+      .mockRejectedValueOnce(new Error('a third call must not be made'));
+
+    await expect(app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET })).rejects.toThrow(
+      new ModelUnavailableError({ reason: 'invalid output after 2 attempts' }),
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await app.close();
   });
 
   it('checks the configured Gemini model with the key at start', async () => {

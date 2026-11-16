@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { Run, RunEvent, RunSummary, TraceEntry } from '@triage/contracts';
@@ -12,7 +13,7 @@ export function renderWithQuery(ui: ReactElement) {
 /** A run summary as GET /api/runs lists it. */
 export function aRunSummary(overrides: Partial<RunSummary> = {}): RunSummary {
   return {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     createdAt: '2026-11-13T12:00:00.000Z',
     subject: 'Laptop refund',
     status: 'done',
@@ -29,7 +30,7 @@ export function aRun(overrides: RunOverrides = {}): Run {
   const { result, ...rest } = overrides;
   return {
     status: 'done',
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     createdAt: '2026-11-13T12:00:00.000Z',
     model: { provider: 'gemini', name: 'gemini-3.8-flash' },
     ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late', orderId: 'A-1001' },

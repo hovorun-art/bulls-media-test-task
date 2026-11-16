@@ -7,6 +7,25 @@ import { server } from '../../test-server';
 import { renderWithQuery } from '../../test-utils';
 import { TicketForm } from './ticket-form';
 
+/** The service accepts the ticket as a new run; `sent` receives the body the form posted. */
+function acceptTicket() {
+  const id = randomUUID();
+  const sent = vi.fn();
+  server.use(
+    http.post('*/api/triage', async ({ request }) => {
+      sent(await request.json());
+      return HttpResponse.json({ id }, { status: 202 });
+    }),
+  );
+  return { id, sent };
+}
+
+/** Types the two fields every ticket needs. */
+async function typeTicket({ email, message }: { email: string; message: string }) {
+  await userEvent.type(screen.getByLabelText('Customer email'), email);
+  await userEvent.type(screen.getByLabelText('Message'), message);
+}
+
 describe('TicketForm', () => {
   it('Picking a sample fills the form', async () => {
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
@@ -32,8 +51,7 @@ describe('TicketForm', () => {
     );
     const onTriaged = vi.fn();
     renderWithQuery(<TicketForm onTriaged={onTriaged} />);
-    await userEvent.type(screen.getByLabelText('Customer email'), 'anna-at-example');
-    await userEvent.type(screen.getByLabelText('Message'), 'Where is my lamp?');
+    await typeTicket({ email: 'anna-at-example', message: 'Where is my lamp?' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
@@ -51,40 +69,37 @@ describe('TicketForm', () => {
     expect(screen.getByLabelText('Order id (optional)')).toHaveValue('');
   });
 
-  it('sends a typed order id', async () => {
-    let sent: unknown;
-    server.use(
-      http.post('*/api/triage', async ({ request }) => {
-        sent = await request.json();
-        return HttpResponse.json({ id: randomUUID() }, { status: 202 });
-      }),
-    );
+  it('sends a typed subject', async () => {
+    const { sent } = acceptTicket();
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
-    await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
-    await userEvent.type(screen.getByLabelText('Message'), 'Refund please');
+    await typeTicket({ email: 'anna@example.com', message: 'Where is my lamp?' });
+    await userEvent.type(screen.getByLabelText('Subject'), 'Lamp');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
+
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledWith({ email: 'anna@example.com', subject: 'Lamp', body: 'Where is my lamp?' }));
+  });
+
+  it('sends a typed order id', async () => {
+    const { sent } = acceptTicket();
+    renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
+    await typeTicket({ email: 'anna@example.com', message: 'Refund please' });
     await userEvent.type(screen.getByLabelText('Order id (optional)'), 'A-1002');
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
-    await vi.waitFor(() => expect(sent).toEqual({ email: 'anna@example.com', subject: '', body: 'Refund please', orderId: 'A-1002' }));
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledWith({ email: 'anna@example.com', subject: '', body: 'Refund please', orderId: 'A-1002' }));
   });
 
   it('leaves out an order id of only spaces', async () => {
-    let sent: unknown;
-    server.use(
-      http.post('*/api/triage', async ({ request }) => {
-        sent = await request.json();
-        return HttpResponse.json({ id: randomUUID() }, { status: 202 });
-      }),
-    );
+    const { sent } = acceptTicket();
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
-    await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
-    await userEvent.type(screen.getByLabelText('Message'), 'Lamp');
+    await typeTicket({ email: 'anna@example.com', message: 'Lamp' });
     await userEvent.type(screen.getByLabelText('Order id (optional)'), '   ');
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
-    await vi.waitFor(() => expect(sent).toEqual({ email: 'anna@example.com', subject: '', body: 'Lamp' }));
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledWith({ email: 'anna@example.com', subject: '', body: 'Lamp' }));
   });
 
   it('clears the error after a later success', async () => {
@@ -106,8 +121,7 @@ describe('TicketForm', () => {
   it('disables the button while the ticket is sent', async () => {
     server.use(http.post('*/api/triage', () => new Promise<Response>(() => undefined)));
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
-    await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
-    await userEvent.type(screen.getByLabelText('Message'), 'Where is my lamp?');
+    await typeTicket({ email: 'anna@example.com', message: 'Where is my lamp?' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
@@ -115,23 +129,13 @@ describe('TicketForm', () => {
   });
 
   it('hands the accepted run id to the page', async () => {
-    const id = randomUUID();
-    let sent: unknown;
-    server.use(
-      http.post('*/api/triage', async ({ request }) => {
-        sent = await request.json();
-        return HttpResponse.json({ id }, { status: 202 });
-      }),
-    );
+    const { id } = acceptTicket();
     const onTriaged = vi.fn();
     renderWithQuery(<TicketForm onTriaged={onTriaged} />);
-    await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
-    await userEvent.type(screen.getByLabelText('Subject'), 'Lamp');
-    await userEvent.type(screen.getByLabelText('Message'), 'Where is my lamp?');
+    await typeTicket({ email: 'anna@example.com', message: 'Where is my lamp?' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
     await vi.waitFor(() => expect(onTriaged).toHaveBeenCalledWith(id));
-    expect(sent).toEqual({ email: 'anna@example.com', subject: 'Lamp', body: 'Where is my lamp?' });
   });
 });

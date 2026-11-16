@@ -51,11 +51,12 @@ describe('RunHistory', () => {
   });
 
   it('marks the selected run', async () => {
-    server.use(http.get('*/api/runs', () => HttpResponse.json({ runs: [aSummary()] })));
+    server.use(http.get('*/api/runs', () => HttpResponse.json({ runs: [aSummary(), aRunSummary({ subject: 'Broken lamp' })] })));
 
     renderWithQuery(<RunHistory selectedId={RUN_ID} onSelect={vi.fn()} />);
 
     expect(await screen.findByRole('button', { name: /Laptop refund/ })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('button', { name: /Broken lamp/ })).toHaveAttribute('aria-current', 'false');
   });
 
   it('names a run without a subject by its id', async () => {

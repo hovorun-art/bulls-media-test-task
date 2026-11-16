@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { HttpResponse, http } from 'msw';
 import { ZodError } from 'zod';
 import { describe, expect, it } from 'vitest';
@@ -9,7 +10,7 @@ const TICKET = { email: 'anna@example.com', subject: 'Lamp', body: 'Where is it?
 
 describe('api client', () => {
   it('returns the id of the run the service accepted', async () => {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     server.use(http.post('*/api/triage', () => HttpResponse.json({ id }, { status: 202 })));
 
     expect(await triageTicket(TICKET)).toEqual({ id });
@@ -37,7 +38,9 @@ describe('api client', () => {
   });
 
   it('builds the event stream address of a run', () => {
-    expect(runEventsUrl('r1')).toBe(`${window.location.origin}/api/runs/r1/events`);
+    const id = randomUUID();
+
+    expect(runEventsUrl(id)).toBe(`${window.location.origin}/api/runs/${id}/events`);
   });
 
   it.each([400, 500])('turns a %i answer into an ApiError with the uniform body', async (status) => {
@@ -51,7 +54,7 @@ describe('api client', () => {
   });
 
   it('rejects an answer that does not match the run schema', async () => {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     server.use(http.get(`*/api/runs/${id}`, () => HttpResponse.json({ id })));
 
     await expect(getRun(id)).rejects.toBeInstanceOf(ZodError);

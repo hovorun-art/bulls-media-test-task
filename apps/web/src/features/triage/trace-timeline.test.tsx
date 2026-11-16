@@ -29,8 +29,8 @@ describe('TraceTimeline', () => {
   it('collapses a step on a second click', async () => {
     render(<TraceTimeline trace={[aTraceEntry('classify', { output: { category: 'other' } })]} />);
     const step = screen.getByRole('button', { name: /classify/ });
-
     await userEvent.click(step);
+
     await userEvent.click(step);
 
     expect(step).toHaveAttribute('aria-expanded', 'false');

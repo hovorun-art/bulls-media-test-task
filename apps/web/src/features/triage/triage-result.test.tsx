@@ -7,11 +7,9 @@ describe('TriageResult', () => {
   it('Result shows the decision', () => {
     const run = aRun({
       result: {
-        category: 'refund_request',
         action: 'propose_refund',
         replyDraft: 'We are reviewing a refund of 89 USD.',
         summary: 'refund_request, high priority. Action: propose_refund.',
-        refund: { orderId: 'A-1002', amount: 89, currency: 'USD' },
       },
     });
 

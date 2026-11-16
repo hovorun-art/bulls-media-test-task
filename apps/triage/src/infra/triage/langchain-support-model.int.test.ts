@@ -17,7 +17,7 @@ function aModelOver(baseUrl: string, { maxAttempts, repairAttempts }: { maxAttem
 /** The parts of a generateContent request body the tests look at. */
 interface GenerateBody {
   tools?: { functionDeclarations: { name: string }[] }[];
-  generationConfig?: { responseSchema?: { properties: Record<string, unknown> } };
+  generationConfig?: { responseSchema?: { properties: Record<string, unknown>; required?: string[] } };
 }
 
 /**
@@ -103,6 +103,36 @@ describe('LangChainSupportModel over ChatGoogleGenerativeAI', () => {
     });
 
     expect(stub.bodies[0]?.generationConfig?.responseSchema?.properties.refundOrderId).toEqual({ type: 'string' });
+  });
+
+  it('leaves the refund order out of the required decision fields', async () => {
+    const decision = { action: 'reply', reasons: ['The order is on its way.'], citedArticles: [], refundOrderId: 'A-1001' };
+    const stub = await aGeminiStub([{ status: 200, text: JSON.stringify(decision) }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    await model.decide({
+      ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late' },
+      classification: CLASSIFICATION,
+      observations: [],
+    });
+
+    expect(stub.bodies[0]?.generationConfig?.responseSchema?.required).toEqual(['action', 'reasons', 'citedArticles']);
+  });
+
+  it('returns the refund order of a proposed refund through the real client', async () => {
+    const decision = { action: 'propose_refund', reasons: ['Delivered last week.'], citedArticles: [], refundOrderId: 'A-1002' };
+    const stub = await aGeminiStub([{ status: 200, text: JSON.stringify(decision) }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    const answer = await model.decide({
+      ticket: { email: 'anna@example.com', subject: 'Refund', body: 'Headphones stopped charging', orderId: 'A-1002' },
+      classification: CLASSIFICATION,
+      observations: [],
+    });
+
+    expect(answer).toEqual(decision);
   });
 
   it('returns a decision with no refund order through the real client', async () => {

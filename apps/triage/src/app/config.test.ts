@@ -21,7 +21,7 @@ describe('TriageConfigSchema', () => {
 
   it('applies the defaults', () => {
     expect(parse({})).toMatchObject({
-      GEMINI_MODEL: 'gemini-3.8-flash',
+      GEMINI_MODEL: 'gemini-flash-lite-latest',
       MODEL_MAX_ATTEMPTS: 4,
       MODEL_REPAIR_ATTEMPTS: 2,
       MAX_TOOL_CALLS: 8,
@@ -30,6 +30,9 @@ describe('TriageConfigSchema', () => {
       RUN_DEADLINE_SECONDS: 600,
       RUN_EVENTS_HEARTBEAT_SECONDS: 15,
       PORT: 3000,
+      HOST: '127.0.0.1',
+      DATABASE_PATH: 'data/runs.sqlite',
+      LOG_LEVEL: 'info',
     });
   });
 

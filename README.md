@@ -246,7 +246,7 @@ npm run test:e2e needs the Playwright browser once: `npx playwright install chro
 | Service e2e | `apps/triage/test/e2e` | The real Nest app on port 0 with a fresh SQLite and the model mocked at its port. Covers validation (400), background runs and their event stream, refund approval and rejection (409 when not paused), escalation when the model is down, runs listing and lookup, 404s, and start-up refusal. |
 | Web e2e | `apps/web/e2e` | Playwright in a real browser, with the API mocked at the network. A support agent picks a sample, triages it, follows its steps, approves the refund, reads the decision and expands the trace. |
 | Sample runner | `samples/src` | The runner follows a run until it is done, approves a refund the run waits for, and stops on an error answer (`fetch` stubbed). |
-| Compose config | `tests/system-e2e/src` | `docker compose config` of `compose.yaml` (rendered with a dummy key): only the triage and web services, start order, model choice, the required key. |
+| Compose config | `tests/system-e2e/src` | `docker compose config` of `compose.yaml` (rendered with a dummy key): only the triage and web services, start order, model choice, the required key, the runs volume. |
 
 The model is never called in automated tests: they are deterministic and free. The live behaviour is also checked with the sample runner below.
 

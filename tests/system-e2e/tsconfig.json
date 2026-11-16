@@ -1,0 +1,1 @@
+{ "extends": "@triage/tooling/tsconfig.base.json", "include": ["src", "e2e", "*.config.ts"] }

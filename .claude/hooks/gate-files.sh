@@ -56,10 +56,21 @@ def deny(reason):
     decide("deny", reason)
 
 
+def change_folder(prefix, name):
+    """The change's folder. A relative path the cwd does not hold (the cwd is a subfolder and the
+    command changed into the root first) is looked up from the checkout's root instead."""
+    if os.path.isabs(prefix):
+        return os.path.join(prefix, 'openspec', 'changes', name)
+    folder = os.path.join(cwd, prefix, 'openspec', 'changes', name)
+    if os.path.isdir(folder):
+        return folder
+    top = subprocess.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
+    return os.path.join(top.stdout.strip(), prefix, 'openspec', 'changes', name) if top.returncode == 0 else folder
+
+
 def approved(prefix, name):
     """The marker of this change holds the sha256 of its brief.md as it is now."""
-    root = prefix if os.path.isabs(prefix) else os.path.join(cwd, prefix)
-    folder = os.path.join(root, 'openspec', 'changes', name)
+    folder = change_folder(prefix, name)
     try:
         marker = open(os.path.join(folder, '.decisions-approved'), encoding='utf-8').read()
         brief = open(os.path.join(folder, 'brief.md'), 'rb').read()

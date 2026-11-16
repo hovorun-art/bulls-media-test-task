@@ -34,9 +34,9 @@ verdict() {
   printf '%s\ncommit: %s\n' "$2" "${3:-$(git -C "$1" rev-parse HEAD)}" >"$1/openspec/changes/demo/.verdict"
 }
 
-# run_case <name> <tool> <file path or command> <expected: deny|ask|none> [setup function]
+# run_case <name> <tool> <file path or command> <expected: deny|ask|none> [setup function] [cwd inside the project]
 run_case() {
-  local name="$1" tool="$2" arg="$3" expected="$4" setup="${5:-}"
+  local name="$1" tool="$2" arg="$3" expected="$4" setup="${5:-}" sub="${6:-.}"
   local dir actual
   dir=$(make_project)
   [ -n "$setup" ] && "$setup" "$dir"
@@ -45,7 +45,7 @@ run_case() {
 import json, sys
 tool, arg, cwd = sys.argv[1:4]
 ti = {"command": arg} if tool == "Bash" else {"file_path": arg}
-print(json.dumps({"tool_name": tool, "tool_input": ti, "cwd": cwd}))' "$tool" "$arg" "$dir" \
+print(json.dumps({"tool_name": tool, "tool_input": ti, "cwd": cwd}))' "$tool" "$arg" "$dir/$sub" \
     | CLAUDE_PROJECT_DIR="$dir" bash "$HOOK" \
     | python3 -c 'import json,sys; s=sys.stdin.read(); print(json.loads(s)["hookSpecificOutput"]["permissionDecision"] if s.strip() else "none")')
   if [ "$actual" = "$expected" ]; then
@@ -89,6 +89,9 @@ run_case "a relative write after cd into the changes folder is blocked" Bash 'cd
 run_case "a write after cd into unapproved specs is blocked" Bash 'cd openspec/changes/draft/specs && echo x > a.md' deny
 run_case "a relative write after cd into an approved change is allowed" Bash 'cd openspec/changes/demo && echo x > tasks.md' none
 run_case "a write elsewhere after cd is left alone" Bash 'cd src && echo x > specs/a.ts' none
+run_case "from a subfolder, a write after cd to the root into an approved change is allowed" Bash 'cd __DIR__ && echo x > openspec/changes/demo/tasks.md' none '' src
+run_case "from a subfolder, a write after cd to the root into an unapproved change is blocked" Bash 'cd __DIR__ && echo x > openspec/changes/draft/tasks.md' deny '' src
+run_case "from a subfolder, an edit of an approved change's tasks by absolute path is allowed" Edit '__DIR__/openspec/changes/demo/tasks.md' none '' src
 run_case "a project agent named change-verifier is never written" Write '__DIR__/.claude/agents/change-verifier.md' deny
 run_case "a project agent named change-verifier is never written through Bash" Bash 'cp x.md .claude/agents/change-verifier.md' deny
 run_case "another project agent may be written" Write '__DIR__/.claude/agents/helper.md' none

@@ -1,6 +1,6 @@
 # The whole system with one command: docker compose up  ->  web UI on http://localhost:8080
 # Needs GOOGLE_API_KEY (a Gemini API key): GOOGLE_API_KEY=<key> docker compose up, or in .env (see .env.example).
-name: triage
+name: bulls-media-test
 
 services:
   triage:

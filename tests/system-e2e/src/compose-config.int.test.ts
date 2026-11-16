@@ -19,7 +19,7 @@ interface ComposeConfig {
 function renderConfig({ env = {} }: { env?: Record<string, string | undefined> } = {}): ComposeConfig {
   const output = execFileSync(
     'docker',
-    ['compose', '--env-file', '/dev/null', '-p', 'triage', '-f', 'compose.yaml', 'config', '--format', 'json'],
+    ['compose', '--env-file', '/dev/null', '-p', 'bulls-media-test', '-f', 'compose.yaml', 'config', '--format', 'json'],
     {
       cwd: REPO_ROOT,
       env: {

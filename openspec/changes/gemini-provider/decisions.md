@@ -1,0 +1,11 @@
+# Decisions: gemini-provider
+
+- 2026-11-16 Remove Ollama entirely; Gemini becomes the default; Anthropic stays - why: user wants Gemini instead of Ollama and a lighter stack; instead of: keep Ollama as an option, add Gemini with Ollama still default; by: user
+- 2026-11-16 Library `@langchain/google-genai` 2.3.6 (9 Nov 2026, ~1.05M weekly downloads, ESM+CJS, types, tool calling and structured output, peer @langchain/core ^1.3.5 fits 1.4.0) - why: plain Gemini API key, most used; instead of: `@langchain/google` 0.2.15 (~380K weekly, 0.x, needs a core bump), `@langchain/google-vertexai` 2.3.6 (~600K weekly, needs GCP credentials); by: user
+- 2026-11-16 Default model `gemini-3.8-flash` - why: user asked for the free one; it is stable and has a free tier on the Gemini API (gemini-2.5-* are deprecated from 1 Dec 2026); instead of: gemini-3.5-flash-lite (free, weaker), gemini-4-argon (no free tier); by: user
+- 2026-11-16 Start check calls the Gemini models API for the key and the model - why: fail fast with a clear message, like the Ollama check did; instead of: only require the key in the config; by: user
+- 2026-11-16 Key variable `GOOGLE_API_KEY` - why: the library's default name; instead of: GEMINI_API_KEY; by: user
+- 2026-11-16 Delete `compose.host-llm.yaml` - why: with no model container it has nothing left to do; by: user confirmed assumption
+- 2026-11-16 Compose requires `GOOGLE_API_KEY` (`${GOOGLE_API_KEY:?...}`) and refuses to start without it; config-render tests pass a dummy key - why: fail at once with a clear message; instead of: start and let triage exit unhealthy (assumption rejected); by: user
+- 2026-11-16 Fixtures and samples switch from ollama / qwen3:8b to gemini / gemini-3.8-flash - why: nothing should mention Ollama; instead of: leave them (assumption first rejected, then chosen as an answer); by: user
+- 2026-11-16 Remove Anthropic too; Gemini is the only provider and `LLM_PROVIDER` is dropped - why: user asked to remove Anthropic as well; with one provider the switch has nothing to choose; instead of: keep Anthropic as an option; by: user (the variable's removal: agent, follows from it, in the brief for approval)

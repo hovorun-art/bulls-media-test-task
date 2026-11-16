@@ -4,9 +4,10 @@ An AI agent that triages e-commerce support tickets (the test task in `docs/`). 
 the Zod schemas in `packages/contracts`; product overview in `README.md`.
 Spec-driven with OpenSpec and a local flow in `.claude/` (skills, agents, hooks).
 
-Stack: TypeScript, npm workspaces + Turborepo; NestJS, LangGraph.js + LangChain (Ollama by default,
-Anthropic optional), SQLite (`node:sqlite`), pino, Zod; React + Vite, TanStack Query, i18next; Vitest,
-Testing Library, MSW, Playwright. No Docker: the model runs in a local Ollama.
+Stack: TypeScript, npm workspaces + Turborepo; NestJS, LangGraph.js + LangChain (Google Gemini via
+`@langchain/google-genai`, key in `GOOGLE_API_KEY`), SQLite (`node:sqlite`), pino, Zod; React + Vite,
+TanStack Query, i18next; Vitest, Testing Library, MSW, Playwright. Docker Compose (`compose.yaml`)
+runs the triage service and the web app; the model is the hosted Gemini API.
 
 ## Layout and rules
 

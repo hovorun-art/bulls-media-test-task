@@ -18,12 +18,12 @@ Owns: apps/triage/**, package-lock.json · Depends on: none · Done when: npm ru
 
 Owns: compose.yaml, compose.host-llm.yaml, tests/system-e2e/** · Depends on: none · Done when: npm run check:full
 
-- [ ] 2.1 Test "No model containers", "Default host ports" and "Web waits for the healthy triage service" (tests/system-e2e/src/compose-config.int.test.ts; every render passes a dummy `GOOGLE_API_KEY`)
-- [ ] 2.2 compose.yaml: remove the `ollama` and `ollama-pull` services, the models volume and triage's depends_on; update the header comment
-- [ ] 2.3 Test "Default model" and "Model from the environment" (compose-config.int.test.ts, `GEMINI_MODEL`)
-- [ ] 2.4 Test "Missing key stops compose" and "Key reaches the triage service" (compose-config.int.test.ts)
-- [ ] 2.5 compose.yaml triage environment: `GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}`, `GOOGLE_API_KEY: ${GOOGLE_API_KEY:?<message naming GOOGLE_API_KEY>}`; drop the OLLAMA_* variables
-- [ ] 2.6 Delete compose.host-llm.yaml and its tests in compose-config.int.test.ts
+- [x] 2.1 Test "No model containers", "Default host ports" and "Web waits for the healthy triage service" (tests/system-e2e/src/compose-config.int.test.ts; every render passes a dummy `GOOGLE_API_KEY`)
+- [x] 2.2 compose.yaml: remove the `ollama` and `ollama-pull` services, the models volume and triage's depends_on; update the header comment
+- [x] 2.3 Test "Default model" and "Model from the environment" (compose-config.int.test.ts, `GEMINI_MODEL`)
+- [x] 2.4 Test "Missing key stops compose" and "Key reaches the triage service" (compose-config.int.test.ts)
+- [x] 2.5 compose.yaml triage environment: `GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}`, `GOOGLE_API_KEY: ${GOOGLE_API_KEY:?<message naming GOOGLE_API_KEY>}`; drop the OLLAMA_* variables
+- [x] 2.6 Delete compose.host-llm.yaml and its tests in compose-config.int.test.ts
 
 ## 3. Docs, .env.example and web fixtures
 

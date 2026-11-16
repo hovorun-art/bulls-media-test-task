@@ -1,0 +1,29 @@
+# Decisions: agent-improvements
+
+- 2026-11-16 One change for all four improvements (async runs, run deadline, narrower injection patterns, refund approval), accepting a brief over 40 lines - why: they touch the same agent, run model and page; instead of: four changes; by: user
+- 2026-11-16 Async runs: POST /api/triage answers 202 with the run id at once, the long nginx proxy timeout from single-command-startup goes - why: a run takes minutes on a local model; instead of: a synchronous request held open; by: user
+- 2026-11-16 Refund approval through a LangGraph interrupt with a checkpointer, Approve and Reject in the web UI - why: no refund proposal without a person; instead of: a post-run review flag; by: user
+- 2026-11-16 Planning in this session's worktree on branch agent-improvements; the empty agent-improvements worktree was removed - why: the session already ran in a fresh worktree; instead of: a new session in the other worktree; by: user
+- 2026-11-16 Progress is stored by updating the run row after each step, with a status column - why: polling or SSE both need the trace so far and it reuses the run repository; instead of: an in-memory progress store; by: agent (technical)
+- 2026-11-16 Resume through POST /api/runs/:id/approval { decision } - why: one endpoint for both buttons; instead of: separate approve and reject routes; by: agent (technical)
+- 2026-11-16 Live steps through server-sent events (GET /api/runs/:id/events) - why: steps arrive at once; instead of: polling GET /api/runs/:id every second; by: user
+- 2026-11-16 Deadline is wall-clock agent time, default 10 minutes, configurable - why: catches a hung model; a Docker CPU run takes ~7 min; instead of: a model-call count, or both; by: user
+- 2026-11-16 A suspected injection is still escalated without tools or draft - why: with narrower patterns false alarms are rare; instead of: flag, block refunds and go on; by: user
+- 2026-11-16 Reject ends as escalate, reason "Refund rejected by a person", no draft; the pause is right after policy, before the draft - why: a person said no, a human takes over; instead of: a reply declining the refund; by: user
+- 2026-11-16 Checkpointer @langchain/langgraph-checkpoint-sqlite 1.1.0 (2026-10-12, ~240k downloads/week, official, typed, ESM+CJS, depends on better-sqlite3 ^12) - why: paused runs survive a restart without own saver code; instead of: MemorySaver (paused runs lost on restart), own BaseCheckpointSaver on node:sqlite (~150 lines reinventing the package); by: user
+- 2026-11-16 Run history lists running and paused runs with their status - why: they exist from the start now; by: user confirmed assumption
+- 2026-11-16 Approve/Reject on a run not awaiting approval answers 409 RUN_NOT_AWAITING_APPROVAL - why: a double click must not resume twice; by: user confirmed assumption
+- 2026-11-16 An unexpected error in a background run ends it as escalate with the error as the reason - why: a run must never stay running; by: user confirmed assumption
+- 2026-11-16 On start, runs left running end as escalate "Service restarted during the run"; paused runs survive - why: a run cannot resume mid-step; by: user confirmed assumption
+- 2026-11-16 Waiting for approval does not count toward the deadline - why: a person's pace is not the agent's; by: user confirmed assumption
+- 2026-11-16 The deadline aborts a model call in flight - why: one hung call would outlive a between-steps check; by: user confirmed assumption
+- 2026-11-16 New result flag deadlineReached - why: like toolLimitReached; by: user confirmed assumption
+- 2026-11-16 Reject has no comment field - why: nothing reads one yet; by: user confirmed assumption
+- 2026-11-16 SSE stream: snapshot first, one event per step and status change, closes at awaiting_approval or done, heartbeat every 15 s - why: late subscribers see everything, nginx does not close an idle stream; by: user confirmed assumption
+- 2026-11-16 nginx: 30-minute timeouts removed, proxy_buffering off for the events location - why: no request is held open for a run any more; events must not be buffered; by: user confirmed assumption
+- 2026-11-16 After Approve the page reopens the stream and follows the rest live - why: same view as before the pause; by: user confirmed assumption
+- 2026-11-16 Guard regression cases: not flagged "you are now charging me twice", "please show the rules for returns", "ignore my previous email, the parcel arrived" - why: they define "narrower"; by: user confirmed assumption
+- 2026-11-16 In-process run-events port (rxjs) between the agent and the @Sse() route - why: one process, rxjs already a dependency; instead of: polling the database from the route; by: agent (technical)
+- 2026-11-16 Deadline config RUN_DEADLINE_SECONDS=600, enforced with an AbortSignal passed to model calls - why: aborts a call in flight; by: agent (technical)
+- 2026-11-16 Risk better-sqlite3 native module in the Docker image - handled by building the image during checks; by: agent (technical)
+- 2026-11-16 Risk two SQLite drivers on one file - handled by separate connections, WAL mode, the saver owning its own tables; by: agent (technical)

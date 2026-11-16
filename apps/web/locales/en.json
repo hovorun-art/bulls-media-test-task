@@ -27,7 +27,7 @@
     "reasons": "Reasons",
     "citedArticles": "Cited articles",
     "none": "none",
-    "refund": "Proposed refund: {{amount}} {{currency}} for order {{orderId}} (needs approval)",
+    "refund": "Refund approved by a person: {{amount}} {{currency}} for order {{orderId}}. Approving does not pay it out.",
     "model": "Model: {{provider}} / {{name}}",
     "flags": {
       "injectionSuspected": "Possible prompt injection",

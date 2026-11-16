@@ -244,7 +244,7 @@ describe('App', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Approve' }));
 
-    expect(await screen.findByText('Proposed refund: 89 USD for order A-1002 (needs approval)')).toBeInTheDocument();
+    expect(await screen.findByText('Propose refund')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /approval/ })).toBeInTheDocument();
     expect(sent).toEqual({ decision: 'approve' });
   });

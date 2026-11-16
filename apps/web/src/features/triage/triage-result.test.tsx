@@ -20,7 +20,13 @@ describe('TriageResult', () => {
     expect(screen.getByText('Propose refund')).toBeInTheDocument();
     expect(screen.getByText('We are reviewing a refund of 89 USD.')).toBeInTheDocument();
     expect(screen.getByText('refund_request, high priority. Action: propose_refund.')).toBeInTheDocument();
-    expect(screen.getByText('Proposed refund: 89 USD for order A-1002 (needs approval)')).toBeInTheDocument();
+  });
+
+  it('Refund line says a person approved it', () => {
+    render(<TriageResult run={aRun({ result: { action: 'propose_refund', refund: { orderId: 'A-1002', amount: 89, currency: 'USD' } } })} />);
+
+    expect(screen.getByText('Refund approved by a person: 89 USD for order A-1002. Approving does not pay it out.')).toBeInTheDocument();
+    expect(screen.queryByText(/needs approval/)).not.toBeInTheDocument();
   });
 
   it('shows nothing for a run that has no result yet', () => {
@@ -65,7 +71,7 @@ describe('TriageResult', () => {
   it('shows no refund line without a refund', () => {
     render(<TriageResult run={aRun({ result: { refund: null } })} />);
 
-    expect(screen.queryByText(/Proposed refund/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Refund approved by a person/)).not.toBeInTheDocument();
   });
 
   it.each([

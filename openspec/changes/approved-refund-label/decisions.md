@@ -8,3 +8,4 @@
 - 2026-11-16 The action badge stays "Propose refund" in the decision and in Past runs - why: it names the action, which does not change; by: user confirmed assumption
 - 2026-11-16 The service's summary and the model's reply draft stay unchanged - why: they come from the service and the model, not the web app's text; by: user confirmed assumption
 - 2026-11-16 If the stored run is gone, ask before a new live run for the screenshot - why: a live run calls the hosted model; instead of: running it unasked; by: agent (technical)
+- 2026-11-16 The retaken screenshot shows Past runs only up to the stored run (8:58:35 PM), filtered in the screenshot script - why: the stack has 13 newer runs, which made the picture taller and differ from the original beyond the refund line; instead of: the full current list; by: agent (technical)

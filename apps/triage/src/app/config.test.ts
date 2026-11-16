@@ -30,6 +30,9 @@ describe('TriageConfigSchema', () => {
       RUN_DEADLINE_SECONDS: 600,
       RUN_EVENTS_HEARTBEAT_SECONDS: 15,
       PORT: 3000,
+      HOST: '127.0.0.1',
+      DATABASE_PATH: 'data/runs.sqlite',
+      LOG_LEVEL: 'info',
     });
   });
 

@@ -53,6 +53,7 @@ describe('TriageConfigSchema', () => {
       MODEL_MAX_ATTEMPTS: '1',
       MAX_TOOL_CALLS: '1',
       REFUND_WINDOW_DAYS: '0',
+      REFUND_MAX_AUTO_AMOUNT: '0',
     };
 
     expect(parse(lowest)).toMatchObject({
@@ -60,7 +61,12 @@ describe('TriageConfigSchema', () => {
       MODEL_MAX_ATTEMPTS: 1,
       MAX_TOOL_CALLS: 1,
       REFUND_WINDOW_DAYS: 0,
+      REFUND_MAX_AUTO_AMOUNT: 0,
     });
+  });
+
+  it('accepts a deadline of a fraction of a second', () => {
+    expect(parse({ RUN_DEADLINE_SECONDS: '0.5' })).toMatchObject({ RUN_DEADLINE_SECONDS: 0.5 });
   });
 
   it.each([
@@ -71,6 +77,8 @@ describe('TriageConfigSchema', () => {
     ['REFUND_WINDOW_DAYS', '-1'],
     ['MAX_TOOL_CALLS', '0'],
     ['MAX_TOOL_CALLS', '2.5'],
+    ['MAX_TOOL_CALLS', 'three'],
+    ['RUN_DEADLINE_SECONDS', 'soon'],
     ['REFUND_MAX_AUTO_AMOUNT', '-1'],
     ['RUN_DEADLINE_SECONDS', '0'],
     ['RUN_EVENTS_HEARTBEAT_SECONDS', '0'],

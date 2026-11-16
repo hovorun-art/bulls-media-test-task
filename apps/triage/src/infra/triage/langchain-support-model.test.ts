@@ -24,6 +24,17 @@ function aChatModelAnswering(...answers: unknown[]) {
   return { chatModel, runnables };
 }
 
+/** A chat model with tool calling whose research call answers with the given message, or fails with the given error. */
+function aChatModelResearching(answer: AIMessage | Error) {
+  const chatModel = mockDeep<BaseChatModel>();
+  const withTools = mockDeep<Runnable>();
+  withTools.withRetry.mockReturnValueOnce(withTools as never);
+  if (answer instanceof Error) withTools.invoke.mockRejectedValueOnce(answer);
+  else withTools.invoke.mockResolvedValueOnce(answer);
+  vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
+  return { chatModel, withTools };
+}
+
 const messagesSentTo = (runnable: { invoke: { mock: { calls: unknown[][] } } } | undefined) =>
   runnable?.invoke.mock.calls[0]?.[0] as BaseMessage[];
 
@@ -155,10 +166,10 @@ describe('LangChainSupportModel', () => {
   });
 
   it('turns a failing call into ModelUnavailableError', async () => {
-    const { chatModel } = aChatModelAnswering(new Error('connect ECONNREFUSED 127.0.0.1:11434'));
+    const { chatModel } = aChatModelAnswering(new Error('connect ECONNREFUSED 142.250.0.1:443'));
 
     await expect(aModel(chatModel).classify({ ticket: TICKET })).rejects.toThrow(
-      new ModelUnavailableError({ reason: 'connect ECONNREFUSED 127.0.0.1:11434' }),
+      new ModelUnavailableError({ reason: 'connect ECONNREFUSED 142.250.0.1:443' }),
     );
   });
 
@@ -173,25 +184,25 @@ describe('LangChainSupportModel', () => {
   });
 
   it('turns a tool call of the model into the next research step', async () => {
-    const chatModel = mockDeep<BaseChatModel>();
-    const withTools = mockDeep<Runnable>();
-    withTools.withRetry.mockReturnValueOnce(withTools as never);
-    withTools.invoke.mockResolvedValueOnce(
+    const { chatModel } = aChatModelResearching(
       new AIMessage({ content: '', tool_calls: [{ name: 'get_order', args: { orderId: 'A-1001' }, id: '1' }] }),
     );
-    vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
 
     const next = await aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [] });
 
     expect(next).toEqual({ step: { kind: 'tool', tool: 'get_order', args: { orderId: 'A-1001' } } });
   });
 
+  it('retries each research call up to the configured attempts', async () => {
+    const { chatModel, withTools } = aChatModelResearching(new AIMessage('DONE'));
+
+    await aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [] });
+
+    expect(withTools.withRetry).toHaveBeenCalledWith({ stopAfterAttempt: 3 });
+  });
+
   it('passes the abort signal on when researching', async () => {
-    const chatModel = mockDeep<BaseChatModel>();
-    const withTools = mockDeep<Runnable>();
-    withTools.withRetry.mockReturnValueOnce(withTools as never);
-    withTools.invoke.mockResolvedValueOnce(new AIMessage('DONE'));
-    vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
+    const { chatModel, withTools } = aChatModelResearching(new AIMessage('DONE'));
     const { signal } = new AbortController();
 
     await aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [], signal });
@@ -200,11 +211,7 @@ describe('LangChainSupportModel', () => {
   });
 
   it('fails research with ModelUnavailableError when the call fails', async () => {
-    const chatModel = mockDeep<BaseChatModel>();
-    const withTools = mockDeep<Runnable>();
-    withTools.withRetry.mockReturnValueOnce(withTools as never);
-    withTools.invoke.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
-    vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
+    const { chatModel } = aChatModelResearching(new Error('connect ECONNREFUSED'));
 
     await expect(
       aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [] }),
@@ -215,11 +222,7 @@ describe('LangChainSupportModel', () => {
     ['no tool call', new AIMessage('DONE')],
     ['a tool that does not exist', new AIMessage({ content: '', tool_calls: [{ name: 'delete_order', args: {}, id: '1' }] })],
   ])('ends research when the model answers with %s', async (_case, answer) => {
-    const chatModel = mockDeep<BaseChatModel>();
-    const withTools = mockDeep<Runnable>();
-    withTools.withRetry.mockReturnValueOnce(withTools as never);
-    withTools.invoke.mockResolvedValueOnce(answer);
-    vi.mocked(chatModel.bindTools!).mockReturnValueOnce(withTools as never);
+    const { chatModel } = aChatModelResearching(answer);
 
     const next = await aModel(chatModel).nextStep({ ticket: TICKET, classification: CLASSIFICATION, observations: [] });
 

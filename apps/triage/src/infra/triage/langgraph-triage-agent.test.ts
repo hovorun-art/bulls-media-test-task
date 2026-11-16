@@ -498,6 +498,17 @@ describe('LangGraphTriageAgent', () => {
       return setup;
     }
 
+    it('escalates without drafting when the order cannot be looked up', async () => {
+      const { agent, model, orders } = aRefundProposalFor('A-1002');
+      orders.findForCustomer.mockRejectedValueOnce(new Error('order store unreadable'));
+
+      const { result, trace } = await agent.run({ runId: RUN_ID, onStep: noStep, ticket: aTicket({ orderId: 'A-1002' }) });
+
+      expect(result).toMatchObject({ action: 'escalate', refund: null, replyDraft: null, reasons: ['order store unreadable'] });
+      expect(trace.find((entry) => entry.step === 'policy')?.error).toBe('order store unreadable');
+      expect(model.draft).not.toHaveBeenCalled();
+    });
+
     it('refunds the order the model names, not the one in the ticket', async () => {
       const { agent, orders, refundPolicy } = aRefundProposalFor('A-1002');
       orders.findForCustomer.mockResolvedValueOnce({ order: anOrder() });
@@ -881,6 +892,24 @@ describe('LangGraphTriageAgent', () => {
   });
 
   it('reports each step as soon as it ends', async () => {
+    const { agent, model, knowledgeBase } = anAgent();
+    const reported: TraceEntry[] = [];
+    let reportedWhenDeciding: string[] = [];
+    model.classify.mockResolvedValueOnce(aClassification());
+    model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
+    model.decide.mockImplementationOnce(async () => {
+      reportedWhenDeciding = reported.map((entry) => entry.step);
+      return { action: 'reply', reasons: ['x'], citedArticles: [], refundOrderId: null };
+    });
+    model.draft.mockResolvedValueOnce({ replyDraft: 'Hi' });
+    knowledgeBase.filterKnown.mockResolvedValueOnce({ ids: [] });
+
+    await agent.run({ runId: RUN_ID, onStep: async (entry) => void reported.push(entry), ticket: aTicket() });
+
+    expect(reportedWhenDeciding).toEqual(['guard', 'classify', 'research']);
+  });
+
+  it('reports every step of the trace', async () => {
     const { agent, model, knowledgeBase } = anAgent();
     model.classify.mockResolvedValueOnce(aClassification());
     model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });

@@ -232,12 +232,8 @@ Every error has the same body: `{ code, message, details }`. All bodies are Zod 
 ```bash
 npm run check         # typecheck + lint (incl. layer rules) + unit tests, all workspaces
 npm run check:full    # + integration tests (real SQLite, local HTTP stubs of Ollama)
-npm run test:e2e      # service HTTP e2e (Vitest) + web e2e (Playwright) + system e2e (Docker)
+npm run test:e2e      # service HTTP e2e (Vitest) + web e2e (Playwright)
 ```
-
-The system e2e starts the whole Compose stack itself (project `triage-system-e2e`, ports 18080 and
-13000, so a running stack is not touched) and needs the same Docker resources as the Docker start.
-Only that suite: `npm run test:e2e -- --filter=@triage/system-e2e`.
 
 npm run test:e2e needs the Playwright browser once: `npx playwright install chromium`.
 
@@ -248,10 +244,8 @@ npm run test:e2e needs the Playwright browser once: `npx playwright install chro
 | Service e2e | `apps/triage/test/e2e` | The real Nest app on port 0 with a fresh SQLite and the model mocked at its port. Covers validation (400), escalation when the model is down, runs listing and lookup, 404s, and start-up refusal. |
 | Web e2e | `apps/web/e2e` | Playwright in a real browser, with the API mocked at the network. A support agent picks a sample, triages it, reads the decision and expands the trace. |
 | Compose config | `tests/system-e2e/src` | `docker compose config` of `compose.yaml` and `compose.host-llm.yaml`: start order, model choice, the shared models volume, the variant without Ollama. |
-| System e2e | `tests/system-e2e/e2e` | The real Compose stack with the real model: the page and the API answer, the model was pulled, a sample ticket is triaged from the web UI, and the run survives a recreated stack. |
 
-Apart from the system e2e, the model is never called in automated tests: they are deterministic and
-free. The live behaviour is also checked with the sample runner below.
+The model is never called in automated tests: they are deterministic and free. The live behaviour is also checked with the sample runner below.
 
 Every test is named after a scenario in [`openspec/specs/*/spec.md`](openspec/specs) (WHEN/THEN), so a
 requirement can be traced to its test.

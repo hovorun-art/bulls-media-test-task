@@ -18,8 +18,8 @@ Root `package.json` (with a `packageManager` field, which Turborepo requires):
 
 Each workspace defines the tasks it has: `typecheck` (`tsc --noEmit`), `lint` (`eslint . --cache
 --max-warnings 0`), `test:unit`, `test:integration` (Vitest projects `<app>:unit`,
-`<app>:integration`), `test:e2e` (a backend app's Vitest e2e), `test:e2e:ui` (Playwright: `apps/web`
-and `tests/system-e2e`), `build`, `dev`.
+`<app>:integration`), `test:e2e` (a backend app's Vitest e2e), `test:e2e:ui` (Playwright in `apps/web`),
+`build`, `dev`.
 
 - Turborepo (`turbo.json`) caches a task by a hash of its inputs: the workspace's files, the
   workspaces it depends on, the root configs (`globalDependencies`) and the locked packages. An

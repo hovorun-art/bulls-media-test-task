@@ -5,10 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModelUnavailableError } from '../../domain/triage/model-unavailable.error';
 import { LangChainSupportModel } from './langchain-support-model';
 
-/**
- * A local stand-in for the Ollama HTTP API: answers each POST /api/chat with the next scripted reply.
- * A reply with `hold` never answers, like a model that is still thinking.
- */
 /** The adapter over the real ChatOllama client, aimed at the stub. */
 function aModelOver(baseUrl: string, { maxAttempts, repairAttempts }: { maxAttempts: number; repairAttempts: number }) {
   return new LangChainSupportModel(
@@ -17,6 +13,10 @@ function aModelOver(baseUrl: string, { maxAttempts, repairAttempts }: { maxAttem
   );
 }
 
+/**
+ * A local stand-in for the Ollama HTTP API: answers each POST /api/chat with the next scripted reply.
+ * A reply with `hold` never answers, like a model that is still thinking.
+ */
 async function anOllamaStub(replies: { status: number; content?: string; toolCalls?: unknown[]; hold?: boolean }[]) {
   const requests: string[] = [];
   const server = createServer((request, response) => {

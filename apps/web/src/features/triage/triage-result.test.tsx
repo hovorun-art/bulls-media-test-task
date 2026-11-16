@@ -98,7 +98,10 @@ describe('TriageResult', () => {
 
     render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
 
-    expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
     expect(screen.queryByText('Possible prompt injection')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tool call limit reached')).not.toBeInTheDocument();
+    expect(screen.queryByText('Policy overrode the model')).not.toBeInTheDocument();
+    expect(screen.queryByText('Model failure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Run deadline reached')).not.toBeInTheDocument();
   });
 });

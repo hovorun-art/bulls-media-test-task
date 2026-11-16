@@ -208,13 +208,13 @@ export class TriageUnderTest {
     this.model.draft.mockResolvedValueOnce({ replyDraft: 'Your order is on its way.' });
   }
 
-  /** Every model call fails, as when the model server is down. */
   /** The model never answers the classification, so the run stays running. */
   scriptModelNeverAnswers(): void {
     this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
     this.model.classify.mockReturnValueOnce(new Promise(() => {}));
   }
 
+  /** Every model call fails, as when the model server is down. */
   scriptModelDown(): void {
     this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
     this.model.classify.mockRejectedValueOnce(new ModelUnavailableError({ reason: 'connect ECONNREFUSED' }));

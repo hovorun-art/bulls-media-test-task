@@ -1,0 +1,5 @@
+{
+  "//": "Covers every workspace so that tsx applies the decorator settings to shared packages too.",
+  "extends": "./tooling/tsconfig.base.json",
+  "exclude": ["node_modules", "**/dist"]
+}

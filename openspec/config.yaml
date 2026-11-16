@@ -5,7 +5,10 @@ schema: spec-flow
 # This text is added to every `openspec instructions` answer, so keep it short: the stack, the layout
 # and the code rules are already in CLAUDE.md and .claude/rules/.
 context: |
-  TODO: a short description of the product (what it does, its key guarantees).
+  An AI agent that triages e-commerce support tickets: classify, research with tools (knowledge base,
+  orders, refund rules), decide (reply, propose_refund, escalate, refuse) and draft a reply for a human.
+  Guarantees: money rules (refund eligibility, limits) are code, never the model; prompt injection never
+  changes the policy; model failures end in an escalation, never an error; every run is stored with its trace.
 
 # Per-artifact rules for this project (brief, specs, tasks), for example:
 # rules:

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": ["tooling/**", "tsconfig.json", ".nvmrc"],
+  "tasks": {
+    "transit": { "dependsOn": ["^transit"] },
+    "typecheck": { "dependsOn": ["transit"] },
+    "lint": { "dependsOn": ["transit"] },
+    "test:unit": { "dependsOn": ["transit"] },
+    "test:integration": { "dependsOn": ["transit"] },
+    "test:e2e": { "dependsOn": ["transit"] },
+    "test:e2e:ui": { "dependsOn": ["transit"], "cache": false },
+    "build": { "dependsOn": ["transit"], "outputs": ["dist/**"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}

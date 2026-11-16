@@ -9,7 +9,6 @@ paths:
 
 # Scripts, tasks and the Turborepo cache
 
-<!-- TODO: keep in sync with the root and workspace package.json scripts -->
 Root `package.json` (with a `packageManager` field, which Turborepo requires):
 ```json
 "check":      "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run typecheck lint test:unit",

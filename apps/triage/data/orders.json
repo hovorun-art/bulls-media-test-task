@@ -1,0 +1,80 @@
+[
+  {
+    "id": "A-1001",
+    "email": "anna@example.com",
+    "status": "shipped",
+    "items": [{ "name": "Desk lamp", "quantity": 1, "price": 49.99 }],
+    "total": 49.99,
+    "currency": "USD",
+    "placedDaysAgo": 4,
+    "deliveredDaysAgo": null,
+    "carrier": "UPS",
+    "trackingNumber": "1Z999AA10123456784",
+    "refunded": false
+  },
+  {
+    "id": "A-1002",
+    "email": "anna@example.com",
+    "status": "delivered",
+    "items": [{ "name": "Wireless headphones", "quantity": 1, "price": 89.0 }],
+    "total": 89.0,
+    "currency": "USD",
+    "placedDaysAgo": 12,
+    "deliveredDaysAgo": 5,
+    "carrier": "DHL",
+    "trackingNumber": "JD014600006281140000",
+    "refunded": false
+  },
+  {
+    "id": "B-2001",
+    "email": "ben@example.com",
+    "status": "delivered",
+    "items": [{ "name": "Coffee grinder", "quantity": 1, "price": 129.0 }],
+    "total": 129.0,
+    "currency": "USD",
+    "placedDaysAgo": 52,
+    "deliveredDaysAgo": 45,
+    "carrier": "UPS",
+    "trackingNumber": "1Z999AA10123456785",
+    "refunded": false
+  },
+  {
+    "id": "C-3001",
+    "email": "chris@example.com",
+    "status": "delivered",
+    "items": [{ "name": "Laptop", "quantity": 1, "price": 1299.0 }],
+    "total": 1299.0,
+    "currency": "USD",
+    "placedDaysAgo": 8,
+    "deliveredDaysAgo": 3,
+    "carrier": "FedEx",
+    "trackingNumber": "794698765432",
+    "refunded": false
+  },
+  {
+    "id": "D-4001",
+    "email": "dana@example.com",
+    "status": "processing",
+    "items": [{ "name": "Office chair", "quantity": 1, "price": 210.0 }],
+    "total": 210.0,
+    "currency": "USD",
+    "placedDaysAgo": 1,
+    "deliveredDaysAgo": null,
+    "carrier": null,
+    "trackingNumber": null,
+    "refunded": false
+  },
+  {
+    "id": "E-5001",
+    "email": "eve@example.com",
+    "status": "delivered",
+    "items": [{ "name": "Phone case", "quantity": 2, "price": 15.0 }],
+    "total": 30.0,
+    "currency": "USD",
+    "placedDaysAgo": 15,
+    "deliveredDaysAgo": 10,
+    "carrier": "USPS",
+    "trackingNumber": "9400111899223197428490",
+    "refunded": true
+  }
+]

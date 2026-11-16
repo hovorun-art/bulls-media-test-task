@@ -1,0 +1,47 @@
+import type { Logger } from '@triage/kernel';
+import { describe, expect, it } from 'vitest';
+import { mockDeep } from 'vitest-mock-extended';
+import type { SchemaMigrator } from '../../domain/runs/schema-migrator';
+import type { ModelReadiness } from '../../domain/triage/model-readiness';
+import { StartupChecks } from './startup-checks';
+
+function aStartup(applied: string[]) {
+  const order: string[] = [];
+  const migrator = mockDeep<SchemaMigrator>();
+  const readiness = mockDeep<ModelReadiness>();
+  const logger = mockDeep<Logger>();
+  migrator.migrate.mockImplementationOnce(() => {
+    order.push('migrate');
+    return { applied };
+  });
+  readiness.check.mockImplementationOnce(async () => {
+    order.push('check');
+  });
+  return { checks: new StartupChecks(migrator, readiness, logger), logger, order };
+}
+
+describe('StartupChecks', () => {
+  it('migrates the storage before checking the model', async () => {
+    const { checks, order } = aStartup([]);
+
+    await checks.onApplicationBootstrap();
+
+    expect(order).toEqual(['migrate', 'check']);
+  });
+
+  it('logs the migrations it applied', async () => {
+    const { checks, logger } = aStartup(['001_create_runs.sql']);
+
+    await checks.onApplicationBootstrap();
+
+    expect(logger.info).toHaveBeenCalledWith({ message: 'migrations applied', context: { applied: ['001_create_runs.sql'] } });
+  });
+
+  it('logs nothing when the storage is up to date', async () => {
+    const { checks, logger } = aStartup([]);
+
+    await checks.onApplicationBootstrap();
+
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+});

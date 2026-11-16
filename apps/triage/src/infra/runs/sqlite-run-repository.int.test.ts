@@ -15,7 +15,7 @@ const migrationsDirectory = fileURLToPath(new URL('../../../migrations', import.
 const aRun = (overrides: Partial<Run> = {}): Run => ({
   id: randomUUID(),
   createdAt: '2026-11-13T10:00:00.000Z',
-  model: { provider: 'ollama', name: 'qwen3:8b' },
+  model: { provider: 'gemini', name: 'gemini-3.8-flash' },
   ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp', orderId: 'A-1001' },
   status: 'done',
   result: {

@@ -31,7 +31,7 @@ export function aRun(overrides: RunOverrides = {}): Run {
     status: 'done',
     id: crypto.randomUUID(),
     createdAt: '2026-11-13T12:00:00.000Z',
-    model: { provider: 'ollama', name: 'qwen3:8b' },
+    model: { provider: 'gemini', name: 'gemini-3.8-flash' },
     ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late', orderId: 'A-1001' },
     trace: [],
     ...rest,

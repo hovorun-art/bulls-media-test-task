@@ -1,8 +1,6 @@
 import { join, resolve } from 'node:path';
-import { ChatAnthropic } from '@langchain/anthropic';
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { SqliteSaver } from '@langchain/langgraph-checkpoint-sqlite';
-import { ChatOllama } from '@langchain/ollama';
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { CLOCK, type Clock, LOGGER, type Logger, RANDOM, type Random } from '@triage/kernel';
 import { INJECTION_GUARD, type InjectionGuard } from '../../domain/guard/injection-guard';
@@ -20,13 +18,15 @@ import { MarkdownKnowledgeBase } from '../../infra/knowledge-base/markdown-knowl
 import { SeededOrderStore } from '../../infra/orders/seeded-order-store';
 import { RefundPolicyImpl } from '../../infra/refunds/refund-policy.impl';
 import { LangChainSupportModel } from '../../infra/triage/langchain-support-model';
+import { GeminiModelReadiness } from '../../infra/triage/gemini-model-readiness';
 import { LangGraphTriageAgent } from '../../infra/triage/langgraph-triage-agent';
-import { OllamaModelReadiness } from '../../infra/triage/ollama-model-readiness';
 import { TicketTriageImpl } from '../../infra/triage/ticket-triage.impl';
 import { APP_ROOT, TRIAGE_CONFIG, type TriageConfig } from '../config';
 import { RunsModule } from '../runs/runs.module';
 import { StartupChecks } from './startup-checks';
 import { TriageController } from './triage.controller';
+
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com';
 
 /** Ports outside the service: e2e tests replace them with mocks, production builds them from the config. */
 export interface ExternalPorts {
@@ -116,17 +116,18 @@ export class TriageModule {
       provide: SUPPORT_MODEL,
       inject: [TRIAGE_CONFIG],
       useFactory: (config: TriageConfig) => {
-        const anthropic = config.LLM_PROVIDER === 'anthropic';
-        const modelName = anthropic ? config.ANTHROPIC_MODEL : config.OLLAMA_MODEL;
-        // Retries live in LangChainSupportModel, so the chat models get none of their own.
-        const chatModel: BaseChatModel = anthropic
-          ? new ChatAnthropic({ model: modelName, apiKey: config.ANTHROPIC_API_KEY, temperature: 0, maxRetries: 0 })
-          : new ChatOllama({ model: modelName, baseUrl: config.OLLAMA_BASE_URL, temperature: 0, think: false, maxRetries: 0 });
+        // Retries live in LangChainSupportModel, so the chat model gets none of its own.
+        const chatModel = new ChatGoogleGenerativeAI({
+          model: config.GEMINI_MODEL,
+          apiKey: config.GOOGLE_API_KEY,
+          temperature: 0,
+          maxRetries: 0,
+        });
         return new LangChainSupportModel(
           { chatModel },
           {
-            provider: config.LLM_PROVIDER,
-            modelName,
+            provider: 'gemini',
+            modelName: config.GEMINI_MODEL,
             maxAttempts: config.MODEL_MAX_ATTEMPTS,
             repairAttempts: config.MODEL_REPAIR_ATTEMPTS,
           },
@@ -141,9 +142,11 @@ export class TriageModule {
       provide: MODEL_READINESS,
       inject: [TRIAGE_CONFIG],
       useFactory: (config: TriageConfig): ModelReadiness =>
-        config.LLM_PROVIDER === 'ollama'
-          ? new OllamaModelReadiness({ baseUrl: config.OLLAMA_BASE_URL, model: config.OLLAMA_MODEL })
-          : { check: async () => undefined }, // the key itself is checked by the config schema
+        new GeminiModelReadiness({
+          baseUrl: GEMINI_BASE_URL,
+          apiKey: config.GOOGLE_API_KEY,
+          model: config.GEMINI_MODEL,
+        }),
     };
   }
 }

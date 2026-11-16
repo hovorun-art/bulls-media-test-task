@@ -115,13 +115,6 @@ The validate step SHALL drop cited article ids that are not in the knowledge bas
 - **WHEN** the model cites an article id that the knowledge base does not have
 - **THEN** the result does not list that id
 
-### Requirement: Model provider is configurable
-The service SHALL use the model provider named by its configuration, a local model by default or the hosted one, and SHALL refuse to start with a clear error when the chosen provider is not usable.
-
-#### Scenario: Hosted provider without a key does not start
-- **WHEN** the hosted provider is chosen and no API key is configured
-- **THEN** the service does not start and the error names the missing key
-
 ### Requirement: A person approves or rejects a proposed refund
 A run awaiting approval SHALL be resumed by an approval request carrying approve or reject: approve SHALL end it with action propose_refund, the order id, the amount and a reply draft; reject SHALL end it with action escalate, the reason "Refund rejected by a person" and no reply draft.
 
@@ -184,3 +177,37 @@ An error that is not a model failure SHALL end the run with status done, action 
 #### Scenario: Unhandled error ends the run as an escalation
 - **WHEN** the agent fails with an error that none of its steps handles
 - **THEN** the run ends with status done, action escalate and the error message among the reasons
+
+### Requirement: Runs use the configured Gemini model
+The service SHALL triage every ticket with the Gemini model named by `GEMINI_MODEL`, defaulting to `gemini-3.8-flash`, and SHALL record each run's model as provider `gemini` with that model name.
+
+#### Scenario: Default Gemini model is recorded
+- **WHEN** the service runs without `GEMINI_MODEL` set and a ticket is triaged
+- **THEN** the run's model is provider "gemini" and name "gemini-3.8-flash"
+
+#### Scenario: Configured Gemini model is recorded
+- **WHEN** the service runs with `GEMINI_MODEL` set to "gemini-3.5-flash-lite" and a ticket is triaged
+- **THEN** the run's model is provider "gemini" and name "gemini-3.5-flash-lite"
+
+#### Scenario: Old provider settings are ignored
+- **WHEN** the service starts with `LLM_PROVIDER` set to "ollama" and a valid Gemini key
+- **THEN** the service starts and its runs record provider "gemini"
+
+### Requirement: Service refuses to start without a usable Gemini key and model
+The service SHALL refuse to start with a clear error when `GOOGLE_API_KEY` is not set, when the Gemini models API rejects the key, or when that API does not know the configured model, and SHALL check this once at start.
+
+#### Scenario: Missing Gemini key does not start
+- **WHEN** the service starts without `GOOGLE_API_KEY`
+- **THEN** the service does not start and the error names `GOOGLE_API_KEY`
+
+#### Scenario: Rejected Gemini key does not start
+- **WHEN** the service starts and the Gemini models API rejects the key
+- **THEN** the service does not start and the error says the Gemini API key was rejected
+
+#### Scenario: Unknown Gemini model does not start
+- **WHEN** the service starts and the Gemini models API does not know the configured model
+- **THEN** the service does not start and the error names that model
+
+#### Scenario: Usable key and model start
+- **WHEN** the service starts and the Gemini models API returns the configured model for the key
+- **THEN** the service starts and answers GET /api/health with 200

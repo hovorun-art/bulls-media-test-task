@@ -32,6 +32,6 @@ describe('start-up', () => {
   afterEach(() => service.stop());
 
   it('does not start when the model is not reachable', async () => {
-    await expect(service.start({ modelReady: false })).rejects.toThrow('Model unavailable: Ollama is not reachable');
+    await expect(service.start({ modelReady: false })).rejects.toThrow('Model unavailable: Gemini API is not reachable');
   });
 });

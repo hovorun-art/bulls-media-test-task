@@ -15,8 +15,7 @@ try {
     host: config.HOST,
     port: config.PORT,
   });
-  const model = config.LLM_PROVIDER === 'anthropic' ? config.ANTHROPIC_MODEL : config.OLLAMA_MODEL;
-  logger.info({ message: 'triage service listening', context: { url, provider: config.LLM_PROVIDER, model } });
+  logger.info({ message: 'triage service listening', context: { url, provider: 'gemini', model: config.GEMINI_MODEL } });
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   bootLogger.error({ message: 'triage service did not start', context: { error: message } });

@@ -33,7 +33,7 @@ const POLICY = step('policy', { output: { action: 'propose_refund', refund: REFU
 const RUN = {
   id: RUN_ID,
   createdAt: '2026-11-13T12:00:00.000Z',
-  model: { provider: 'ollama', name: 'qwen3:8b' },
+  model: { provider: 'gemini', name: 'gemini-3.8-flash' },
   ticket: TICKET,
   status: 'running',
   result: null,

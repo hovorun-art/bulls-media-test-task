@@ -39,7 +39,7 @@ const anEntry = (step: TraceEntry['step']): TraceEntry => ({
 const aStoredRun = (overrides: Partial<Run> = {}): Run => ({
   id: RUN_ID,
   createdAt: '2026-11-13T12:00:00.000Z',
-  model: { provider: 'ollama', name: 'qwen3:8b' },
+  model: { provider: 'gemini', name: 'gemini-3.8-flash' },
   ticket: TICKET,
   status: 'awaiting_approval',
   result: null,
@@ -76,7 +76,7 @@ function aNewTicketTriage() {
   const setup = aTriage();
   setup.random.uuid.mockReturnValueOnce({ value: RUN_ID });
   setup.clock.now.mockReturnValueOnce({ instant: new Date('2026-11-13T12:00:00.000Z') });
-  setup.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+  setup.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
   return setup;
 }
 
@@ -93,7 +93,7 @@ describe('TicketTriageImpl', () => {
     expect(run).toEqual({
       id: RUN_ID,
       createdAt: '2026-11-13T12:00:00.000Z',
-      model: { provider: 'ollama', name: 'qwen3:8b' },
+      model: { provider: 'gemini', name: 'gemini-3.8-flash' },
       ticket: TICKET,
       status: 'running',
       result: null,

@@ -40,7 +40,7 @@ export const aTicket = (overrides: Partial<Ticket> = {}): Ticket => ({
 export const aStoredRun = (overrides: Partial<Run> = {}): Run => ({
   id: randomUUID(),
   createdAt: '2026-11-13T12:00:00.000Z',
-  model: { provider: 'ollama', name: 'qwen3:8b' },
+  model: { provider: 'gemini', name: 'gemini-3.8-flash' },
   ticket: aTicket(),
   status: 'running',
   result: null,
@@ -66,11 +66,11 @@ export class TriageUnderTest {
   async start({ modelReady = true, env = {} }: { modelReady?: boolean; env?: Record<string, string> } = {}): Promise<void> {
     const { config } = new ZodConfigParser().parse({
       schema: TriageConfigSchema,
-      env: { DATABASE_PATH: join(this.directory, 'runs.sqlite'), HOST: '127.0.0.1', PORT: '0', LOG_LEVEL: 'silent', ...env },
+      env: { GOOGLE_API_KEY: 'test-key', DATABASE_PATH: join(this.directory, 'runs.sqlite'), HOST: '127.0.0.1', PORT: '0', LOG_LEVEL: 'silent', ...env },
     });
     const logger = new PinoLogger({ pino: pino({ level: 'silent' }) });
     if (modelReady) this.readiness.check.mockResolvedValueOnce(undefined);
-    else this.readiness.check.mockRejectedValueOnce(new ModelUnavailableError({ reason: 'Ollama is not reachable' }));
+    else this.readiness.check.mockRejectedValueOnce(new ModelUnavailableError({ reason: 'Gemini API is not reachable' }));
     const started = await new NestServiceBootstrap({ logger }).start({
       module: AppModule.forRoot({ config, logger, ports: { supportModel: this.model, modelReadiness: this.readiness } }),
       host: config.HOST,
@@ -112,7 +112,7 @@ export class TriageUnderTest {
   /** The model classifies, then does not answer the research step until `release` is called. */
   scriptHeldResearch(): { release: () => void } {
     let release = () => {};
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockResolvedValueOnce({ category: 'order_status', priority: 'normal', issueSummary: 'Order status.' });
     this.model.nextStep.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -131,7 +131,7 @@ export class TriageUnderTest {
 
   /** The model looks up the order and the tracking article, then replies. */
   scriptOrderStatusResearch(): void {
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockResolvedValueOnce({ category: 'order_status', priority: 'normal', issueSummary: 'Order status.' });
     this.model.nextStep.mockResolvedValueOnce({ step: { kind: 'tool', tool: 'get_order', args: { orderId: 'A-1001' } } });
     this.model.nextStep.mockResolvedValueOnce({
@@ -153,7 +153,7 @@ export class TriageUnderTest {
    */
   scriptRefundDecision(orderId: string, { held = false } = {}): { release: () => void } {
     let release = () => {};
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockResolvedValueOnce({ category: 'refund_request', priority: 'high', issueSummary: 'Refund.' });
     if (held) {
       this.model.nextStep.mockReturnValueOnce(
@@ -176,7 +176,7 @@ export class TriageUnderTest {
 
   /** Classification only: what the model is asked when the guard flags the ticket. */
   scriptClassificationOnly(): void {
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockResolvedValueOnce({ category: 'refund_request', priority: 'high', issueSummary: 'Refund.' });
   }
 
@@ -196,7 +196,7 @@ export class TriageUnderTest {
 
   /** The model answers a ticket with a plain reply after no research. */
   scriptReply(): void {
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockResolvedValueOnce({ category: 'order_status', priority: 'normal', issueSummary: 'Order status.' });
     this.model.nextStep.mockResolvedValueOnce({ step: { kind: 'done' } });
     this.model.decide.mockResolvedValueOnce({
@@ -210,13 +210,13 @@ export class TriageUnderTest {
 
   /** The model never answers the classification, so the run stays running. */
   scriptModelNeverAnswers(): void {
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockReturnValueOnce(new Promise(() => {}));
   }
 
   /** Every model call fails, as when the model server is down. */
   scriptModelDown(): void {
-    this.model.describe.mockReturnValueOnce({ provider: 'ollama', name: 'qwen3:8b' });
+    this.model.describe.mockReturnValueOnce({ provider: 'gemini', name: 'gemini-3.8-flash' });
     this.model.classify.mockRejectedValueOnce(new ModelUnavailableError({ reason: 'connect ECONNREFUSED' }));
   }
 

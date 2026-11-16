@@ -1,29 +1,8 @@
 # The whole system with one command: docker compose up  ->  web UI on http://localhost:8080
-# Without the Ollama containers (native Ollama on the host, or Anthropic):
-#   docker compose -f compose.yaml -f compose.host-llm.yaml up
+# Needs GOOGLE_API_KEY (a Gemini API key) in .env or the environment; see .env.example.
 name: triage
 
 services:
-  ollama:
-    image: ollama/ollama:0.40.16
-    volumes:
-      - models:/root/.ollama
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
-  ollama-pull:
-    image: ollama/ollama:0.40.16
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-    command: ["pull", "${OLLAMA_MODEL:-qwen3:8b}"]
-    restart: "no"
-    depends_on:
-      ollama:
-        condition: service_healthy
-
   triage:
     build:
       context: .
@@ -34,8 +13,8 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: "3000"
-      OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:?GOOGLE_API_KEY is not set: put your Gemini API key in .env (see .env.example)}"
       DATABASE_PATH: /var/lib/triage/runs.sqlite
     ports:
       - "${TRIAGE_PORT:-3000}:3000"
@@ -47,11 +26,6 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
-    depends_on:
-      ollama:
-        condition: service_healthy
-      ollama-pull:
-        condition: service_completed_successfully
 
   web:
     build:
@@ -64,7 +38,4 @@ services:
         condition: service_healthy
 
 volumes:
-  # A fixed name: every Compose project (the system e2e too) reuses the downloaded models.
-  models:
-    name: triage-ollama-models
   runs:

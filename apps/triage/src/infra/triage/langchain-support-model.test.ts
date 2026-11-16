@@ -111,13 +111,13 @@ describe('LangChainSupportModel', () => {
   });
 
   it('gives the model the classification and the gathered facts when deciding', async () => {
-    const decision = { action: 'reply', reasons: ['Shipped'], citedArticles: [], refundOrderId: null };
+    const decision = { action: 'reply', reasons: ['Shipped'], citedArticles: [] };
     const { chatModel, runnables } = aChatModelAnswering(decision);
     const observations = [{ tool: 'get_order' as const, args: { orderId: 'A-1001' }, result: { found: true } }];
 
     const answer = await aModel(chatModel).decide({ ticket: TICKET, classification: CLASSIFICATION, observations });
 
-    expect(answer).toEqual(decision);
+    expect(answer).toEqual({ ...decision, refundOrderId: null });
     const prompt = String((runnables[0]?.invoke.mock.calls[0]?.[0] as BaseMessage[])[1]?.content);
     expect(prompt).toContain('"category":"order_status"');
     expect(prompt).toContain('<facts>');

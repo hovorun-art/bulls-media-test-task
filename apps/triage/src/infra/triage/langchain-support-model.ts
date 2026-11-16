@@ -32,7 +32,8 @@ const DecisionOutput = z.object({
   action: ActionSchema,
   reasons: z.array(z.string()).min(1),
   citedArticles: z.array(z.string()),
-  refundOrderId: z.string().nullable(),
+  // Optional, not nullable: Gemini's response schema takes one type per field, not ["string", "null"].
+  refundOrderId: z.string().optional(),
 });
 
 const DraftOutput = z.object({ replyDraft: z.string().min(1) });
@@ -83,12 +84,13 @@ export class LangChainSupportModel implements SupportModel {
   }
 
   async decide(req: DecideSupportModelRequest): Promise<DecideSupportModelResponse> {
-    return this.structured('decision', DecisionOutput, req.signal, [
+    const decision = await this.structured('decision', DecisionOutput, req.signal, [
       new SystemMessage(SUPPORT_PROMPTS.decide),
       new HumanMessage(
         `${this.fence(req.ticket)}\n\nClassification: ${JSON.stringify(req.classification)}\n${this.facts(req.observations)}`,
       ),
     ]);
+    return { ...decision, refundOrderId: decision.refundOrderId ?? null };
   }
 
   async draft(req: DraftSupportModelRequest): Promise<DraftSupportModelResponse> {

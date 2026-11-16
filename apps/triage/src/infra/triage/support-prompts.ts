@@ -37,7 +37,7 @@ Decide what support should do.
 - escalate: a human is needed (damaged item to inspect, legal threat, facts missing or contradicting, you are unsure).
 - refuse: the request is outside the shop's support (other people's data, unrelated topics, abuse).
 reasons: short English sentences, each based on a fact. citedArticles: ids of knowledge-base articles from the
-facts that support the decision. refundOrderId: the order id for propose_refund, otherwise null.`,
+facts that support the decision. refundOrderId: the order id for propose_refund, otherwise leave it out.`,
 
   draft: `${RULES}
 

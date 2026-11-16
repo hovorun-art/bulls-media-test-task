@@ -1,5 +1,5 @@
 # The whole system with one command: docker compose up  ->  web UI on http://localhost:8080
-# Needs GOOGLE_API_KEY (a Gemini API key) in .env or the environment; see .env.example.
+# Needs GOOGLE_API_KEY (a Gemini API key): GOOGLE_API_KEY=<key> docker compose up, or in .env (see .env.example).
 name: triage
 
 services:
@@ -14,7 +14,7 @@ services:
       HOST: 0.0.0.0
       PORT: "3000"
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
-      GOOGLE_API_KEY: "${GOOGLE_API_KEY:?GOOGLE_API_KEY is not set: put your Gemini API key in .env (see .env.example)}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:?GOOGLE_API_KEY is not set: run GOOGLE_API_KEY=<your Gemini API key> docker compose up, or put the key in .env (see .env.example)}"
       DATABASE_PATH: /var/lib/triage/runs.sqlite
     ports:
       - "${TRIAGE_PORT:-3000}:3000"

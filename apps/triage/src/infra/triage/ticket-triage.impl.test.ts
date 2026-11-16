@@ -260,6 +260,23 @@ describe('TicketTriageImpl', () => {
     );
   });
 
+  it('logs the escalation as the decision when the resumed agent fails', async () => {
+    const { triage, agent, runs, logger, clock } = aTriage();
+    runs.get.mockResolvedValueOnce({ run: aStoredRun() });
+    agent.resume.mockRejectedValueOnce(new Error('checkpoint lost'));
+    agent.escalate.mockReturnValueOnce({ result: anEscalation('checkpoint lost') });
+    clock.now.mockReturnValueOnce({ instant: new Date('2026-11-13T12:05:00.000Z') });
+
+    await triage.decide({ runId: RUN_ID, decision: 'approve' });
+
+    await vi.waitFor(() =>
+      expect(logger.info).toHaveBeenCalledWith({
+        message: 'triage decision',
+        context: { runId: RUN_ID, category: 'other', priority: 'high', action: 'escalate', flags: RESULT.flags, durationMs: 300000 },
+      }),
+    );
+  });
+
   it('refuses a second decision that comes while the first is being stored', async () => {
     const { triage, agent, runs } = aTriage();
     runs.get.mockResolvedValueOnce({ run: aStoredRun() });

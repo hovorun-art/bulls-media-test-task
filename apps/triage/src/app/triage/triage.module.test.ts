@@ -60,12 +60,15 @@ const anInvalidClassification = () =>
 
 describe('TriageModule', () => {
   let directory = '';
+  let app: Awaited<ReturnType<typeof anAppFor>> | undefined;
 
   beforeEach(() => {
     directory = mkdtempSync(join(tmpdir(), 'triage-module-'));
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await app?.close();
+    app = undefined;
     vi.useRealTimers();
     vi.restoreAllMocks();
     rmSync(directory, { recursive: true, force: true });
@@ -87,14 +90,13 @@ describe('TriageModule', () => {
   });
 
   it('calls the configured Gemini model with the key', async () => {
-    const app = await aReadyAppFor(directory, { GEMINI_MODEL: 'gemini-3.5-flash-lite' });
+    app = await aReadyAppFor(directory, { GEMINI_MODEL: 'gemini-3.5-flash-lite' });
     const answer = { category: 'order_status', priority: 'normal', issueSummary: 'Where is A-1001.' };
     const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(answer) }] }, finishReason: 'STOP', index: 0 }] }),
     );
 
     await app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET });
-    await app.close();
 
     const [url, init] = fetch.mock.calls[0] ?? [];
     expect(String(url)).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
@@ -103,24 +105,39 @@ describe('TriageModule', () => {
 
   it('calls the model at most MODEL_MAX_ATTEMPTS times when it keeps failing', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout'] });
-    const app = await aReadyAppFor(directory, { MODEL_MAX_ATTEMPTS: '2' });
+    app = await aReadyAppFor(directory, { MODEL_MAX_ATTEMPTS: '2' });
     const fetch = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(anOverloadedAnswer())
       .mockResolvedValueOnce(anOverloadedAnswer())
       .mockRejectedValueOnce(new Error('a third call must not be made'));
 
-    const answer = app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET });
-    const outcome = expect(answer).rejects.toThrow(ModelUnavailableError);
+    // The rejection is awaited after the backoff timers have run.
+    const outcome = expect(app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET })).rejects.toThrow(ModelUnavailableError);
     await vi.runAllTimersAsync();
 
     await outcome;
     expect(fetch).toHaveBeenCalledTimes(2);
-    await app.close();
+  });
+
+  it('Model call is retried after a transient failure', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    app = await aReadyAppFor(directory, { MODEL_MAX_ATTEMPTS: '2' });
+    const answer = { category: 'order_status', priority: 'normal', issueSummary: 'Where is A-1001.' };
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(anOverloadedAnswer())
+      .mockResolvedValueOnce(
+        Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(answer) }] }, finishReason: 'STOP', index: 0 }] }),
+      );
+
+    const classification = app.get<SupportModel>(SUPPORT_MODEL).classify({ ticket: A_TICKET });
+    await vi.runAllTimersAsync();
+
+    expect(await classification).toEqual(answer);
   });
 
   it('asks the model for a valid answer again MODEL_REPAIR_ATTEMPTS times', async () => {
-    const app = await aReadyAppFor(directory, { MODEL_REPAIR_ATTEMPTS: '1' });
+    app = await aReadyAppFor(directory, { MODEL_REPAIR_ATTEMPTS: '1' });
     const fetch = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(anInvalidClassification())
@@ -132,7 +149,6 @@ describe('TriageModule', () => {
     );
 
     expect(fetch).toHaveBeenCalledTimes(2);
-    await app.close();
   });
 
   it('checks the configured Gemini model with the key at start', async () => {

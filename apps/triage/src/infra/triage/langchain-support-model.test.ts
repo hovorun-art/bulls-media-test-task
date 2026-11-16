@@ -166,10 +166,10 @@ describe('LangChainSupportModel', () => {
   });
 
   it('turns a failing call into ModelUnavailableError', async () => {
-    const { chatModel } = aChatModelAnswering(new Error('connect ECONNREFUSED 127.0.0.1:11434'));
+    const { chatModel } = aChatModelAnswering(new Error('connect ECONNREFUSED 142.250.0.1:443'));
 
     await expect(aModel(chatModel).classify({ ticket: TICKET })).rejects.toThrow(
-      new ModelUnavailableError({ reason: 'connect ECONNREFUSED 127.0.0.1:11434' }),
+      new ModelUnavailableError({ reason: 'connect ECONNREFUSED 142.250.0.1:443' }),
     );
   });
 

@@ -4,8 +4,8 @@
 
 Owns: apps/triage/src/infra/guard/** · Depends on: none · Done when: npm run check
 
-- [ ] 1.1 Test "Question about return rules is not flagged" and "Retracted earlier email is not flagged" (pattern-injection-guard.test.ts); the cases flagged today stay flagged there
-- [ ] 1.2 Narrow `PATTERNS` in `pattern-injection-guard.ts` (e.g. `you are now` only with a role or mode after it, `ignore ... previous` only with instructions/rules/prompts after it, `show ... rules` only for your/the system's rules)
+- [x] 1.1 Test "Question about return rules is not flagged" and "Retracted earlier email is not flagged" (pattern-injection-guard.test.ts); the cases flagged today stay flagged there
+- [x] 1.2 Narrow `PATTERNS` in `pattern-injection-guard.ts` (e.g. `you are now` only with a role or mode after it, `ignore ... previous` only with instructions/rules/prompts after it, `show ... rules` only for your/the system's rules)
 
 ## 2. Async runs, run events, deadline and refund approval in the triage service
 

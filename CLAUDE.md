@@ -20,7 +20,7 @@ packages/contracts   Zod schemas and inferred types shared by the services and t
 packages/service-kit shared backend pieces bound to the server framework (bootstrap, config,
                      logging, health, error mapping)
 tests/support        test-only helpers for integration and e2e tests
-tests/system-e2e     integration tests of the Docker Compose config (no live stack, no model)
+tests/system-e2e     integration tests of the Docker Compose and Turborepo dev config (no live stack, no model)
 tooling/             shared tsconfig, ESLint (layer and class rules) and Vitest presets
 ```
 One service, `apps/triage`: owns the triage runs and their traces (SQLite file, `DATABASE_PATH`);

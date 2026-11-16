@@ -186,6 +186,8 @@ cp .env.example .env         # set GOOGLE_API_KEY; the other values have default
 npm run dev                  # service on :3000, web UI on http://localhost:5173
 ```
 
+The values can also be set inline, e.g. `GOOGLE_API_KEY=<your key> PORT=3200 API_URL=http://127.0.0.1:3200 npm run dev` (`API_URL` points the web UI's proxy at the service).
+
 Open http://localhost:5173, pick a sample ticket and press **Triage ticket**.
 
 At start the service checks the key and the model with the Gemini API and refuses to start, with a
@@ -228,6 +230,7 @@ npm run test:e2e needs the Playwright browser once: `npx playwright install chro
 | Web e2e | `apps/web/e2e` | Playwright with the API mocked at the network: pick a sample, triage it, follow its steps, approve the refund, read the decision and the trace. |
 | Sample runner | `samples/src` | The runner follows a run to its end and approves a refund it waits for (`fetch` stubbed). |
 | Compose config | `tests/system-e2e/src` | `docker compose config` of `compose.yaml`: services, start order, model choice, the required key, the runs volume. |
+| Turborepo dev config | `tests/system-e2e/src` | `turbo run dev --dry=json`: the variables the service and the Vite proxy read reach their dev tasks from the shell. |
 
 Automated tests never call the model, so they are deterministic and free. Every test is named after
 a WHEN/THEN scenario in [`openspec/specs`](openspec/specs). The `local-startup` scenarios that need

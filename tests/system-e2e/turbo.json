@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "test:integration": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/compose*.yaml", "$TURBO_ROOT$/.dockerignore", "$TURBO_ROOT$/apps/*/Dockerfile"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/turbo.json", "$TURBO_ROOT$/compose*.yaml", "$TURBO_ROOT$/.dockerignore", "$TURBO_ROOT$/apps/*/Dockerfile"]
     }
   }
 }

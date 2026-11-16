@@ -10,6 +10,25 @@
     "test:e2e": { "dependsOn": ["transit"] },
     "test:e2e:ui": { "dependsOn": ["transit"], "cache": false },
     "build": { "dependsOn": ["transit"], "outputs": ["dist/**"] },
-    "dev": { "cache": false, "persistent": true }
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "GOOGLE_API_KEY",
+        "GEMINI_MODEL",
+        "MODEL_MAX_ATTEMPTS",
+        "MODEL_REPAIR_ATTEMPTS",
+        "MAX_TOOL_CALLS",
+        "REFUND_WINDOW_DAYS",
+        "REFUND_MAX_AUTO_AMOUNT",
+        "RUN_DEADLINE_SECONDS",
+        "RUN_EVENTS_HEARTBEAT_SECONDS",
+        "PORT",
+        "HOST",
+        "DATABASE_PATH",
+        "LOG_LEVEL",
+        "API_URL"
+      ]
+    }
   }
 }

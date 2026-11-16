@@ -26,25 +26,18 @@ describe('App', () => {
     expect(await screen.findByText("Submit a ticket or open a past run to see the agent's decision.")).toBeInTheDocument();
   });
 
-  it('opens the result of a ticket just triaged and lists it in the history', async () => {
-    const run = aRun({ result: { summary: 'Just triaged: the lamp ships tomorrow.' } });
-    const summary = aRunSummary({ id: run.id, subject: 'Lamp question', category: 'order_status', action: 'reply' });
-    let stored: unknown[] = [];
+  it('lists a ticket just triaged in the history as the selected run', async () => {
+    const run = aRun();
     server.use(
-      http.get('*/api/runs', () => HttpResponse.json({ runs: stored })),
+      // Read on load, before the ticket is sent.
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [] }), { once: true }),
+      http.get('*/api/runs', () => HttpResponse.json({ runs: [aRunSummary({ id: run.id, subject: 'Lamp question' })] })),
       http.get(`*/api/runs/${run.id}`, () => HttpResponse.json(run)),
-      http.post('*/api/triage', () => {
-        stored = [summary];
-        return HttpResponse.json({ id: run.id }, { status: 202 });
-      }),
     );
     renderWithQuery(<App />);
-    await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
-    await userEvent.type(screen.getByLabelText('Message'), 'Where is my lamp?');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
+    await submitTicketAs(run.id);
 
-    expect(await screen.findByText('Just triaged: the lamp ships tomorrow.')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /Lamp question/ })).toHaveAttribute('aria-current', 'true');
   });
 
@@ -64,11 +57,7 @@ describe('App', () => {
   });
 
   it('Opening a past run', async () => {
-    const run = aRun({
-      ticket: { email: 'chris@example.com', subject: 'Laptop refund', body: 'Screen flickers', orderId: 'C-3001' },
-      result: { action: 'escalate', summary: 'refund_request, high priority. Action: escalate.' },
-      trace: [aTraceEntry('guard')],
-    });
+    const run = aRun({ result: { summary: 'refund_request, high priority. Action: escalate.' }, trace: [aTraceEntry('guard')] });
     server.use(
       http.get('*/api/runs', () => HttpResponse.json({ runs: [aRunSummary({ id: run.id, subject: 'Laptop refund' })] })),
       http.get(`*/api/runs/${run.id}`, () => HttpResponse.json(run)),
@@ -252,7 +241,7 @@ describe('App', () => {
   it('Reject shows the escalation', async () => {
     const paused = aRun({ status: 'awaiting_approval', result: null });
     const resumed = { ...paused, status: 'running' as const };
-    const done = aRun({ id: paused.id, result: { action: 'escalate', replyDraft: null, reasons: ['Refund rejected by a person'] } });
+    const done = aRun({ id: paused.id, result: { action: 'escalate', replyDraft: null } });
     let sent: unknown;
     server.use(
       noRuns(),

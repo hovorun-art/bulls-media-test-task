@@ -10,28 +10,32 @@ const POLICY = aTraceEntry('policy', {
   output: { action: 'propose_refund', refund: { orderId: 'A-1002', amount: 89, currency: 'USD' } },
 });
 
+/** A run paused for the refund that POLICY proposes. */
+const aPausedRun = (overrides: Parameters<typeof aRun>[0] = {}) =>
+  aRun({ status: 'awaiting_approval', result: null, trace: [POLICY], ...overrides });
+
 describe('RefundApproval', () => {
   it('Paused run offers Approve and Reject', () => {
-    renderWithQuery(<RefundApproval run={aRun({ status: 'awaiting_approval', result: null, trace: [POLICY] })} />);
+    renderWithQuery(<RefundApproval run={aPausedRun()} />);
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument();
   });
 
   it('shows the refund that waits for approval', () => {
-    renderWithQuery(<RefundApproval run={aRun({ status: 'awaiting_approval', result: null, trace: [POLICY] })} />);
+    renderWithQuery(<RefundApproval run={aPausedRun()} />);
 
     expect(screen.getByText('The agent would propose a refund of 89 USD for order A-1002.')).toBeInTheDocument();
   });
 
   it('names no amount when the proposal is not in the trace', () => {
-    renderWithQuery(<RefundApproval run={aRun({ status: 'awaiting_approval', result: null, trace: [] })} />);
+    renderWithQuery(<RefundApproval run={aPausedRun({ trace: [] })} />);
 
     expect(screen.getByText('The agent would propose a refund.')).toBeInTheDocument();
   });
 
   it('disables both buttons while the decision is sent', async () => {
-    const run = aRun({ status: 'awaiting_approval', result: null, trace: [POLICY] });
+    const run = aPausedRun();
     server.use(http.post(`*/api/runs/${run.id}/approval`, () => new Promise<never>(() => {})));
     renderWithQuery(<RefundApproval run={run} />);
 
@@ -51,7 +55,7 @@ describe('RefundApproval', () => {
   });
 
   it('shows the error when the decision is refused', async () => {
-    const run = aRun({ status: 'awaiting_approval', result: null, trace: [POLICY] });
+    const run = aPausedRun();
     server.use(
       http.post(`*/api/runs/${run.id}/approval`, () =>
         HttpResponse.json(

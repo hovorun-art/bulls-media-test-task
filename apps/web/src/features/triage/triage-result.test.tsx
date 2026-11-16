@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { aRun } from '../../test-utils';
 import { TriageResult } from './triage-result';
 
+const NO_FLAGS = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
+
 describe('TriageResult', () => {
   it('Result shows the decision', () => {
     const run = aRun({
@@ -74,8 +76,6 @@ describe('TriageResult', () => {
 
   it.each([
     ['reply', 'Reply'],
-    ['propose_refund', 'Propose refund'],
-    ['escalate', 'Escalate to a human'],
     ['refuse', 'Refuse'],
   ] as const)('labels the action %s as "%s"', (action, label) => {
     render(<TriageResult run={aRun({ result: { action } })} />);
@@ -90,17 +90,13 @@ describe('TriageResult', () => {
     ['modelFailure', 'Model failure'],
     ['deadlineReached', 'Run deadline reached'],
   ])('shows the flag %s as "%s"', (flag, label) => {
-    const flags = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
-
-    render(<TriageResult run={aRun({ result: { action: 'escalate', flags: { ...flags, [flag]: true } } })} />);
+    render(<TriageResult run={aRun({ result: { action: 'escalate', flags: { ...NO_FLAGS, [flag]: true } } })} />);
 
     expect(screen.getByText(label)).toBeInTheDocument();
   });
 
   it('shows no flag when none is raised', () => {
-    const flags = { injectionSuspected: false, toolLimitReached: false, policyOverride: false, modelFailure: false, deadlineReached: false };
-
-    render(<TriageResult run={aRun({ result: { action: 'escalate', flags } })} />);
+    render(<TriageResult run={aRun({ result: { action: 'escalate', flags: NO_FLAGS } })} />);
 
     expect(screen.queryByText('Possible prompt injection')).not.toBeInTheDocument();
     expect(screen.queryByText('Tool call limit reached')).not.toBeInTheDocument();

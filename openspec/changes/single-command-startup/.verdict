@@ -1,0 +1,4 @@
+PARTIAL
+commit: d974ee559fbe05b0e3ab4d4daeb4c64e14dba6bf
+- Task 1.9 is checked but its "Docker note in .env.example" was never written: .env.example is unchanged on the branch. Add the note (e.g. that compose.yaml fixes HOST, PORT, OLLAMA_BASE_URL and DATABASE_PATH, and that only OLLAMA_MODEL / LLM_PROVIDER / ANTHROPIC_* are taken from .env), or correct tasks.md.
+- Requirement "One command starts the whole system" (web UI on host port 8080, service on 3000) has no test of the default ports: the system e2e uses 18080/13000, so a wrong default in compose.yaml passes every test. Add a scenario-traced test in tests/system-e2e/src/compose-config.int.test.ts asserting web ports published 8080 -> target 80 and triage published 3000 -> target 3000 when WEB_PORT/TRIAGE_PORT are unset.

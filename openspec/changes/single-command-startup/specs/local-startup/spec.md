@@ -14,6 +14,10 @@ Running `docker compose up` from the repository root SHALL start the local model
 - **WHEN** `docker compose up --wait` has finished
 - **THEN** http://localhost:8080 serves the web UI and http://localhost:3000/api/health answers 200 with status "ok"
 
+#### Scenario: Default host ports
+- **WHEN** the Compose configuration is rendered without host port overrides
+- **THEN** the web UI is published on host port 8080 and the triage service on host port 3000
+
 #### Scenario: Web UI reaches the service through its own origin
 - **WHEN** the stack is up and a client calls http://localhost:8080/api/health
 - **THEN** the answer is 200 with status "ok"
@@ -70,5 +74,5 @@ Adding `compose.host-llm.yaml` to the command SHALL start the triage service and
 - **THEN** it has no model server and no model pull service, and the triage service depends on neither
 
 #### Scenario: Override points the service at the host
-- **WHEN** the Compose configuration is rendered with `compose.host-llm.yaml` and no `OLLAMA_BASE_URL` set
+- **WHEN** the Compose configuration is rendered with `compose.yaml` and `compose.host-llm.yaml`
 - **THEN** the triage service uses http://host.docker.internal:11434 as its model server

@@ -14,6 +14,7 @@ Owns: compose.yaml, compose.host-llm.yaml, .dockerignore, .env.example, apps/tri
 - [x] 1.8 Test "Override points the service at the host" (compose-config.int.test.ts)
 - [x] 1.9 `compose.yaml`: `ollama` (`ollama/ollama`, healthcheck, models volume with a fixed `name:`), one-shot `ollama-pull` (`OLLAMA_MODEL`, default `qwen3:8b`), `triage` (HOST 0.0.0.0, `OLLAMA_BASE_URL=http://ollama:11434`, `DATABASE_PATH` in the runs volume, `/api/health` healthcheck, env from `.env` when present), `web`; host ports from `WEB_PORT` (8080) and `TRIAGE_PORT` (3000); `apps/triage/Dockerfile` (runs `npm start` with tsx), `apps/web/Dockerfile` (`vite build` served by nginx) with `apps/web/nginx.conf` (`/api` proxied to `triage:3000`, timeouts long enough for a run), `.dockerignore`; a Docker note in `.env.example`
 - [x] 1.10 `compose.host-llm.yaml`: `ollama` and `ollama-pull` out of the default start, `triage.depends_on` reset, `OLLAMA_BASE_URL` defaulting to `http://host.docker.internal:11434` (with `host-gateway` for Linux)
+- [x] 1.11 Test "Default host ports" (compose-config.int.test.ts)
 
 ## 2. System e2e and README
 

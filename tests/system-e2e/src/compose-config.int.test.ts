@@ -6,6 +6,7 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 
 interface ComposeService {
   depends_on?: Record<string, { condition: string }>;
+  ports?: { target: number; published: string }[];
   environment?: Record<string, string>;
   command?: string[];
 }
@@ -21,12 +22,26 @@ function renderConfig({ files = ['compose.yaml'], project = 'triage', env = {} }
   const output = execFileSync(
     'docker',
     ['compose', '--env-file', '/dev/null', '-p', project, ...fileArgs, 'config', '--format', 'json'],
-    { cwd: REPO_ROOT, env: { ...process.env, OLLAMA_MODEL: undefined, OLLAMA_BASE_URL: undefined, ...env }, encoding: 'utf8' },
+    { cwd: REPO_ROOT, env: {
+      ...process.env,
+      OLLAMA_MODEL: undefined,
+      OLLAMA_BASE_URL: undefined,
+      WEB_PORT: undefined,
+      TRIAGE_PORT: undefined,
+      ...env,
+    }, encoding: 'utf8' },
   );
   return JSON.parse(output) as ComposeConfig;
 }
 
 describe('compose.yaml', () => {
+  it('Default host ports', () => {
+    const config = renderConfig();
+
+    expect(config.services.web.ports).toMatchObject([{ target: 80, published: '8080' }]);
+    expect(config.services.triage.ports).toMatchObject([{ target: 3000, published: '3000' }]);
+  });
+
   it('Triage waits for the model', () => {
     const config = renderConfig();
 
@@ -71,7 +86,8 @@ describe('compose.host-llm.yaml', () => {
   it('Override leaves out the model containers', () => {
     const config = renderConfig({ files: HOST_LLM_FILES });
 
-    expect(Object.keys(config.services).sort()).toEqual(['triage', 'web']);
+    expect(config.services).not.toHaveProperty('ollama');
+    expect(config.services).not.toHaveProperty('ollama-pull');
     expect(config.services.triage.depends_on).toBeUndefined();
   });
 

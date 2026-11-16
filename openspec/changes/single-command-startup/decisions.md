@@ -21,3 +21,4 @@
 - 2026-11-16 Ollama image pinned to ollama/ollama:0.12.6 for now - why: pulling 0.40.16 (the host's version) failed with no space left on the Docker disk; to revisit once the user has given Docker more disk and memory; by: agent (technical)
 - 2026-11-16 Ollama image pinned to ollama/ollama:0.40.16, the host's version - why: the user cleared Docker and raised its memory, so the pull that failed for lack of space now fits; replaces the 0.12.6 pin; by: agent (technical)
 - 2026-11-16 System e2e files are named *.e2e.ts and picked by Playwright's testMatch - why: keeps them out of the Vitest projects, which run *.test.ts; by: agent (technical)
+- 2026-11-16 Added the scenario "Default host ports" and task 1.11, and reworded "Override points the service at the host" to match the fixed OLLAMA_BASE_URL - why: the final test review and the verifier found no test of the default ports (the e2e uses its own ports) and a WHEN that no longer held; by: agent (technical)

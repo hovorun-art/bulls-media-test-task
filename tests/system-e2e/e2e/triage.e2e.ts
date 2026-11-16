@@ -18,8 +18,9 @@ test('A ticket is triaged from the web UI with the real model', async ({ page })
 
   await page.getByRole('button', { name: 'Triage ticket' }).click();
 
-  const summary = page.getByRole('heading', { name: 'Summary' }).locator('xpath=following-sibling::p[1]');
-  await expect(summary).toHaveText(/\S/, { timeout: 15 * 60_000 });
+  await expect(page.getByRole('heading', { name: 'Summary' })).toBeVisible({ timeout: 15 * 60_000 });
+  // A failed model still yields an escalation with a summary; only a working model leaves no flag.
+  await expect(page.getByText('Model failure')).toHaveCount(0);
   await expect(page.getByRole('button', { name: new RegExp(SUBJECT) })).toHaveAttribute('aria-current', 'true');
 });
 

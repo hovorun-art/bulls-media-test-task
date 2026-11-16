@@ -1,0 +1,14 @@
+{
+  "name": "@triage/samples",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --cache --max-warnings 0",
+    "test:unit": "vitest run --project samples:unit"
+  },
+  "devDependencies": {
+    "@triage/contracts": "*",
+    "@triage/tooling": "*"
+  }
+}

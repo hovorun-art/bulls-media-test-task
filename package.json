@@ -10,14 +10,15 @@
     "tooling",
     "packages/*",
     "apps/*",
-    "tests/*"
+    "tests/*",
+    "samples"
   ],
   "scripts": {
     "dev": "turbo run dev",
     "check": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run typecheck lint test:unit",
     "check:full": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run typecheck lint test:unit test:integration",
     "test:e2e": "TURBO_CACHE_DIR=\"$(git rev-parse --path-format=absolute --git-common-dir)/turbo-cache\" turbo run test:e2e test:e2e:ui --concurrency=1",
-    "samples": "node samples/run-samples.mjs"
+    "samples": "node samples/src/run-samples.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

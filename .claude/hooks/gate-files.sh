@@ -56,10 +56,31 @@ def deny(reason):
     decide("deny", reason)
 
 
+def git_root():
+    """The root of the checkout the cwd is in, or '' outside a git repository."""
+    top = subprocess.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
+    return top.stdout.strip() if top.returncode == 0 else ''
+
+
+def project_root(prefix, name):
+    """Where `<prefix>openspec/changes/<name>` is. A relative path the cwd does not hold (the cwd is a
+    subfolder and the command changed into the root first) is looked up from the checkout's root."""
+    if os.path.isabs(prefix):
+        return os.path.normpath(prefix)
+    for base in (cwd, git_root()):
+        root = os.path.normpath(os.path.join(base, prefix))
+        if base and os.path.isdir(os.path.join(root, 'openspec', 'changes', name)):
+            return root
+    return os.path.normpath(os.path.join(cwd, prefix))
+
+
+def change_folder(prefix, name):
+    return os.path.join(project_root(prefix, name), 'openspec', 'changes', name)
+
+
 def approved(prefix, name):
     """The marker of this change holds the sha256 of its brief.md as it is now."""
-    root = prefix if os.path.isabs(prefix) else os.path.join(cwd, prefix)
-    folder = os.path.join(root, 'openspec', 'changes', name)
+    folder = change_folder(prefix, name)
     try:
         marker = open(os.path.join(folder, '.decisions-approved'), encoding='utf-8').read()
         brief = open(os.path.join(folder, 'brief.md'), 'rb').read()
@@ -118,7 +139,7 @@ def archive_block(cmd):
         words = [w.strip('\'"') for w in m.group(1).split() if not w.startswith('-')]
         if words:
             name = words[0]
-            root = next((r for r in (cwd, os.environ.get('CLAUDE_PROJECT_DIR') or '')
+            root = next((r for r in (project_root('', name), os.environ.get('CLAUDE_PROJECT_DIR') or '')
                          if r and os.path.isdir(os.path.join(r, 'openspec', 'changes', name))), None)
     for m in re.finditer(r'(?:^|[;&|\n(]|\s)mv\b([^;&|\n]*)', cmd):
         words = [w.strip('\'"') for w in m.group(1).split() if not w.startswith('-')]
@@ -128,7 +149,7 @@ def archive_block(cmd):
             src = re.match(r'^((?:.*/)?)openspec/changes/([^/]+)/?$', w)
             if src and src.group(2) != 'archive':
                 prefix, name = src.group(1), src.group(2)
-                root = os.path.normpath(prefix if os.path.isabs(prefix) else os.path.join(cwd, prefix))
+                root = project_root(prefix, name)
                 if not os.path.isdir(os.path.join(root, 'openspec', 'changes', name)):
                     root = None
     if not name or not root:

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
-import type { Run, RunSummary } from '@triage/contracts';
+import type { Run, RunEvent, RunSummary, TraceEntry } from '@triage/contracts';
+import { HttpResponse } from 'msw';
 import type { ReactElement } from 'react';
 
 export function renderWithQuery(ui: ReactElement) {
@@ -53,4 +54,25 @@ export function aRun(overrides: RunOverrides = {}): Run {
       ...result,
     },
   };
+}
+
+/**
+ * A server-sent event stream of a run, as GET /api/runs/:id/events answers. `open: true` keeps it
+ * open after the events, like a run that is still going.
+ */
+export function anEventStream(events: RunEvent[], { open = false } = {}) {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode('event: heartbeat\ndata: \n\n'));
+      for (const event of events) controller.enqueue(encoder.encode(`id: 1\ndata: ${JSON.stringify(event)}\n\n`));
+      if (!open) controller.close();
+    },
+  });
+  return new HttpResponse(body, { headers: { 'content-type': 'text/event-stream' } });
+}
+
+/** One trace entry of a step that just ended. */
+export function aTraceEntry(step: TraceEntry['step'], overrides: Partial<TraceEntry> = {}): TraceEntry {
+  return { step, tool: null, input: {}, output: {}, error: null, startedAt: '2026-11-13T12:00:01.000Z', durationMs: 1, ...overrides };
 }

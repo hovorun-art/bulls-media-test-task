@@ -44,3 +44,8 @@ pre { white-space: pre-wrap; word-break: break-word; background: #f8f9fb; border
 .trace li.failed button { border-color: var(--bad); }
 .trace-data { padding: 8px 0 4px 12px; display: flex; flex-direction: column; gap: 4px; }
 .trace-data h4 { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.approval { border-color: var(--accent); }
+.approval-actions { display: flex; gap: 8px; margin-top: 8px; }
+.approval-actions button { padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
+.approval-actions button.secondary { background: #eef1f6; color: var(--text); }
+.approval-actions button:disabled { opacity: .7; cursor: progress; }

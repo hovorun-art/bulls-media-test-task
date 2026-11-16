@@ -28,10 +28,10 @@ Owns: apps/web/src/app.tsx, apps/web/src/app.test.tsx, apps/web/src/features/run
 
 - [x] 3.1 Test "Submitted ticket opens its run at once" (ticket-form.test.tsx)
 - [x] 3.2 `use-triage.ts` and `ticket-form.tsx`: the 202 id opens the run, its cache entry starts as running
-- [ ] 3.3 Test "Step appears while the run is running" and "Result appears when the run is done" (app.test.tsx)
-- [ ] 3.4 `useRunEvents` in `features/runs/use-runs.ts`: an `EventSource` on `runEventsUrl` while the run is running, each event written into the `['run', id]` cache, closed at awaiting_approval or done; `trace-timeline.tsx` shows a running state
-- [ ] 3.5 Test "Running run shows its status in the history" and "Opening a past run" (run-history.test.tsx, app.test.tsx)
-- [ ] 3.6 Status in each `run-history.tsx` entry, with the strings in `locales/en.json`
-- [ ] 3.7 Test "Paused run offers Approve and Reject", "Approve follows the run to its result", "Reject shows the escalation", "Finished run offers no approval" (refund-approval.test.tsx)
-- [ ] 3.8 `RefundApproval` component (`refund-approval.tsx`) shown by `app.tsx` for a run awaiting approval: Approve and Reject call `decideRefund`, then follow the run again; strings in `locales/en.json`
-- [ ] 3.9 Playwright `apps/web/e2e/triage.spec.ts`: the mocked API answers 202 and streams the run
+- [x] 3.3 Test "Step appears while the run is running" and "Result appears when the run is done" (app.test.tsx)
+- [x] 3.4 `useRunEvents` in `features/runs/use-runs.ts`: an `EventSource` on `runEventsUrl` while the run is running, each event written into the `['run', id]` cache, closed at awaiting_approval or done; `trace-timeline.tsx` shows a running state
+- [x] 3.5 Test "Running run shows its status in the history" and "Opening a past run" (run-history.test.tsx, app.test.tsx)
+- [x] 3.6 Status in each `run-history.tsx` entry, with the strings in `locales/en.json`
+- [x] 3.7 Test "Paused run offers Approve and Reject", "Approve follows the run to its result", "Reject shows the escalation", "Finished run offers no approval" (refund-approval.test.tsx)
+- [x] 3.8 `RefundApproval` component (`refund-approval.tsx`) shown by `app.tsx` for a run awaiting approval: Approve and Reject call `decideRefund`, then follow the run again; strings in `locales/en.json`
+- [x] 3.9 Playwright `apps/web/e2e/triage.spec.ts`: the mocked API answers 202 and streams the run

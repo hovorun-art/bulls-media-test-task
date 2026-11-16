@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HttpResponse, http } from 'msw';
@@ -55,7 +56,7 @@ describe('TicketForm', () => {
     server.use(
       http.post('*/api/triage', async ({ request }) => {
         sent = await request.json();
-        return HttpResponse.json({ id: crypto.randomUUID() }, { status: 202 });
+        return HttpResponse.json({ id: randomUUID() }, { status: 202 });
       }),
     );
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
@@ -73,7 +74,7 @@ describe('TicketForm', () => {
     server.use(
       http.post('*/api/triage', async ({ request }) => {
         sent = await request.json();
-        return HttpResponse.json({ id: crypto.randomUUID() }, { status: 202 });
+        return HttpResponse.json({ id: randomUUID() }, { status: 202 });
       }),
     );
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
@@ -90,7 +91,7 @@ describe('TicketForm', () => {
     server.use(
       http.post('*/api/triage', () =>
         HttpResponse.json({ code: 'VALIDATION_FAILED', message: 'Invalid input', details: {} }, { status: 400 }), { once: true }),
-      http.post('*/api/triage', () => HttpResponse.json({ id: crypto.randomUUID() }, { status: 202 })),
+      http.post('*/api/triage', () => HttpResponse.json({ id: randomUUID() }, { status: 202 })),
     );
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Message'), 'Lamp');
@@ -102,7 +103,7 @@ describe('TicketForm', () => {
     await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 
-  it('disables the button while the agent works', async () => {
+  it('disables the button while the ticket is sent', async () => {
     server.use(http.post('*/api/triage', () => new Promise<Response>(() => undefined)));
     renderWithQuery(<TicketForm onTriaged={vi.fn()} />);
     await userEvent.type(screen.getByLabelText('Customer email'), 'anna@example.com');
@@ -110,11 +111,11 @@ describe('TicketForm', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Triage ticket' }));
 
-    expect(await screen.findByRole('button', { name: 'Triaging… a local model can take a minute or two' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Sending…' })).toBeDisabled();
   });
 
   it('Submitted ticket opens its run at once', async () => {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     let sent: unknown;
     server.use(
       http.post('*/api/triage', async ({ request }) => {

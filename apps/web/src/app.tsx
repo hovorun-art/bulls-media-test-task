@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RunHistory } from './features/runs/run-history';
 import { useRun } from './features/runs/use-runs';
+import { RefundApproval } from './features/triage/refund-approval';
 import { TicketForm } from './features/triage/ticket-form';
 import { TraceTimeline } from './features/triage/trace-timeline';
 import { TriageResult } from './features/triage/triage-result';
@@ -26,6 +27,12 @@ export function App() {
           {run.error && <p role="alert" className="error">{t('errors.generic', { message: run.error.message })}</p>}
           {run.data ? (
             <>
+              {run.data.status === 'running' && (
+                <section role="status" className="card muted">
+                  {t('result.running')}
+                </section>
+              )}
+              <RefundApproval run={run.data} />
               <TriageResult run={run.data} />
               <TraceTimeline trace={run.data.trace} />
             </>

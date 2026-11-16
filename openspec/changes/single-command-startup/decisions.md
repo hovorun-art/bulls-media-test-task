@@ -1,0 +1,14 @@
+# Decisions: single-command-startup
+
+- 2026-11-16 Start the system with Docker Compose, Ollama as a Compose service - why: one command on any machine, the reviewer needs no local setup; instead of: a native Ollama install as a prerequisite; by: user
+- 2026-11-16 Offer a native-Ollama mode on a Mac via OLLAMA_URL - why: Docker on macOS has no GPU access, so Ollama in a container is CPU only and slow; instead of: Docker only; by: agent (technical)
+- 2026-11-16 Plan this change on top of the support-triage-agent work, which is finished but not merged into main yet; planning paused until it is merged - why: the scaffold on main has nothing to start, the apps live on that branch; instead of: a skeleton of new apps or Compose with Ollama only; by: user
+- 2026-11-16 Default model for the Docker start stays qwen3:8b - why: one model everywhere, the samples were checked on it; instead of: qwen2.5:3b in Docker only, or qwen2.5:3b everywhere (an earlier pick made before the existing default was known); by: user
+- 2026-11-16 No new cloud provider; the existing LLM_PROVIDER=anthropic option stays as it is - why: the user wants Ollama only, and Anthropic already exists in the service; instead of: adding a provider; by: user
+- 2026-11-16 The one command is docker compose up - why: needs no Node.js on the reviewer's machine; instead of: npm start, make up; by: user
+- 2026-11-16 The variant without Ollama containers is a Compose override file (compose.host-llm.yaml) - why: the default command stays one command with no .env; instead of: Compose profiles (would need COMPOSE_PROFILES in .env), an npm script (needs Node); by: user
+- 2026-11-16 The Docker start is checked by a full system e2e with the real model - why: the user wants the whole path proven, from the form to the decision; instead of: a smoke test without the model, manual steps only; by: user
+- 2026-11-16 Web UI on :8080, service on :3000 - why: no clash with npm run dev on :5173, npm run samples keeps working; instead of: reusing :5173; by: user confirmed assumption
+- 2026-11-16 The built web app is served by nginx with an /api proxy; the triage container runs with tsx like npm start - why: small static container, the service runs the same way as today; instead of: vite preview, a compiled service build; by: user confirmed assumption
+- 2026-11-16 SQLite file and models in named volumes; the models volume has a fixed name - why: runs survive restarts, the e2e stack reuses the downloaded model; instead of: bind mounts into the repository; by: user confirmed assumption
+- 2026-11-16 The system e2e starts its own stack under its own project name and allows 15 minutes for one ticket - why: does not touch the user's stack; the model on CPU in Docker is slow; instead of: running against an already started stack; by: user confirmed assumption

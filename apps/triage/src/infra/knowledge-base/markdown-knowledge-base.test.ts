@@ -1,15 +1,18 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MarkdownKnowledgeBase } from './markdown-knowledge-base';
 
 const shopArticles = fileURLToPath(new URL('../../../data/kb', import.meta.url));
 
+/** Holds the folders the tests write; removed after the file. */
+let temporaryRoot = '';
+
 /** A knowledge base made of the given files, so each test shows the articles it relies on. */
 function aKnowledgeBaseOf(files: Record<string, string>) {
-  const directory = mkdtempSync(join(tmpdir(), 'kb-'));
+  const directory = mkdtempSync(join(temporaryRoot, 'kb-'));
   for (const [name, content] of Object.entries(files)) writeFileSync(join(directory, name), content);
   return new MarkdownKnowledgeBase({ directory });
 }
@@ -17,6 +20,14 @@ function aKnowledgeBaseOf(files: Record<string, string>) {
 const anArticle = (id: string, title: string, body: string) => `---\nid: ${id}\ntitle: ${title}\n---\n${body}\n`;
 
 describe('MarkdownKnowledgeBase', () => {
+  beforeAll(() => {
+    temporaryRoot = mkdtempSync(join(tmpdir(), 'kb-tests-'));
+  });
+
+  afterAll(() => {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  });
+
   it('Knowledge base search returns matching articles', async () => {
     const knowledgeBase = new MarkdownKnowledgeBase({ directory: shopArticles });
 

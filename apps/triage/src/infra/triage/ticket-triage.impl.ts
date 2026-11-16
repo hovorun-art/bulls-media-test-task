@@ -64,7 +64,9 @@ export class TicketTriageImpl implements TicketTriage {
   async closeInterrupted(): Promise<CloseInterruptedTicketTriageResponse> {
     const { runs } = await this.d.runs.listRunning();
     for (const run of runs) {
-      await this.store({ ...run, status: 'done', result: this.d.agent.escalate({ reason: 'Service restarted during the run' }).result });
+      const { result } = this.d.agent.escalate({ reason: 'Service restarted during the run' });
+      await this.store({ ...run, status: 'done', result });
+      this.logDecision(run, result);
     }
     return { closed: runs.map((run) => run.id) };
   }
@@ -87,7 +89,9 @@ export class TicketTriageImpl implements TicketTriage {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       try {
-        await this.store({ ...run, trace, status: 'done', result: this.d.agent.escalate({ reason }).result });
+        const { result } = this.d.agent.escalate({ reason });
+        await this.store({ ...run, trace, status: 'done', result });
+        this.logDecision(run, result);
       } catch (storing) {
         const message = storing instanceof Error ? storing.message : String(storing);
         this.d.logger.error({ message: 'run could not be ended', context: { runId: run.id, error: message } });

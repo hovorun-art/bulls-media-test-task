@@ -1,5 +1,5 @@
 {
-  "name": "support-triage-agent",
+  "name": "bulls-media-test",
   "private": true,
   "type": "module",
   "packageManager": "npm@11.19.0",

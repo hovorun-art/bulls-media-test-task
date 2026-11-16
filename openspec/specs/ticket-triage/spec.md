@@ -179,11 +179,11 @@ An error that is not a model failure SHALL end the run with status done, action 
 - **THEN** the run ends with status done, action escalate and the error message among the reasons
 
 ### Requirement: Runs use the configured Gemini model
-The service SHALL triage every ticket with the Gemini model named by `GEMINI_MODEL`, defaulting to `gemini-3.8-flash`, and SHALL record each run's model as provider `gemini` with that model name.
+The service SHALL triage every ticket with the Gemini model named by `GEMINI_MODEL`, defaulting to `gemini-flash-lite-latest`, and SHALL record each run's model as provider `gemini` with that model name.
 
 #### Scenario: Default Gemini model is recorded
 - **WHEN** the service runs without `GEMINI_MODEL` set and a ticket is triaged
-- **THEN** the run's model is provider "gemini" and name "gemini-3.8-flash"
+- **THEN** the run's model is provider "gemini" and name "gemini-flash-lite-latest"
 
 #### Scenario: Configured Gemini model is recorded
 - **WHEN** the service runs with `GEMINI_MODEL` set to "gemini-3.5-flash-lite" and a ticket is triaged

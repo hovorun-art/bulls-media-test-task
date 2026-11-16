@@ -34,7 +34,7 @@ The model used by the triage service SHALL come from `GEMINI_MODEL`, defaulting 
 
 #### Scenario: Default model
 - **WHEN** the Compose configuration is rendered without `GEMINI_MODEL` set
-- **THEN** the triage service uses `gemini-3.8-flash`
+- **THEN** the triage service uses `gemini-flash-lite-latest`
 
 #### Scenario: Model from the environment
 - **WHEN** the Compose configuration is rendered with `GEMINI_MODEL` set to another model

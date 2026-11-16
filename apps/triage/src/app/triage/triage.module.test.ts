@@ -75,7 +75,7 @@ describe('TriageModule', () => {
   });
 
   it('Default Gemini model is recorded', async () => {
-    expect(await describedModelFor(directory, {})).toEqual({ provider: 'gemini', name: 'gemini-3.8-flash' });
+    expect(await describedModelFor(directory, {})).toEqual({ provider: 'gemini', name: 'gemini-flash-lite-latest' });
   });
 
   it('Configured Gemini model is recorded', async () => {
@@ -86,7 +86,7 @@ describe('TriageModule', () => {
   });
 
   it('Old provider settings are ignored', async () => {
-    expect(await describedModelFor(directory, { LLM_PROVIDER: 'ollama' })).toEqual({ provider: 'gemini', name: 'gemini-3.8-flash' });
+    expect(await describedModelFor(directory, { LLM_PROVIDER: 'ollama' })).toEqual({ provider: 'gemini', name: 'gemini-flash-lite-latest' });
   });
 
   it('calls the configured Gemini model with the key', async () => {

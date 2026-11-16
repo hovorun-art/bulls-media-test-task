@@ -61,7 +61,13 @@ describe('compose.yaml', () => {
   it('Default model', () => {
     const config = renderConfig();
 
-    expect(config.services.triage.environment?.GEMINI_MODEL).toBe('gemini-3.8-flash');
+    expect(config.services.triage.environment?.GEMINI_MODEL).toBe('gemini-flash-lite-latest');
+  });
+
+  it('Empty model falls back to the default', () => {
+    const config = renderConfig({ env: { GEMINI_MODEL: '' } });
+
+    expect(config.services.triage.environment?.GEMINI_MODEL).toBe('gemini-flash-lite-latest');
   });
 
   it('Model from the environment', () => {

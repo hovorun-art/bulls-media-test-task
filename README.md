@@ -158,6 +158,31 @@ openspec/               the spec-driven plan: brief, decisions log, specs (scena
 
 ## 5. Setup (local run)
 
+### One command (Docker)
+
+Requirements: **Docker** with Compose v2.24+, at least **8 GB of memory** for Docker (Docker
+Desktop: Settings → Resources) and about **10 GB of free disk** (the Ollama image and the model).
+
+```bash
+docker compose up
+```
+
+This starts Ollama, pulls `qwen3:8b` (about 5 GB, once: it is kept in the `triage-ollama-models`
+volume), then the triage service on :3000 and the web UI on **http://localhost:8080**, each only
+after the one it needs is healthy. Runs are kept in a volume across restarts. Another model:
+`OLLAMA_MODEL=<model> docker compose up`, or set it in `.env`.
+
+Docker has no GPU access on a Mac, so the model runs on the CPU there: on an Apple M1 with 12 GB
+for Docker one sample ticket took about **7 minutes** (1–2.5 minutes with a native Ollama). To use the Ollama installed on the host instead (or
+Anthropic, when `.env` says `LLM_PROVIDER=anthropic`), start everything except the Ollama
+containers:
+
+```bash
+docker compose -f compose.yaml -f compose.host-llm.yaml up
+```
+
+### Development (Node.js)
+
 Requirements: **Node.js ≥ 24** (developed on 26) and **Ollama** for the free local model.
 
 ```bash
@@ -207,8 +232,12 @@ Every error has the same body: `{ code, message, details }`. All bodies are Zod 
 ```bash
 npm run check         # typecheck + lint (incl. layer rules) + unit tests, all workspaces
 npm run check:full    # + integration tests (real SQLite, local HTTP stubs of Ollama)
-npm run test:e2e      # service HTTP e2e (Vitest) + web e2e (Playwright)
+npm run test:e2e      # service HTTP e2e (Vitest) + web e2e (Playwright) + system e2e (Docker)
 ```
+
+The system e2e starts the whole Compose stack itself (project `triage-system-e2e`, ports 18080 and
+13000, so a running stack is not touched) and needs the same Docker resources as the Docker start.
+Only that suite: `npm run test:e2e -- --filter=@triage/system-e2e`.
 
 npm run test:e2e needs the Playwright browser once: `npx playwright install chromium`.
 
@@ -218,9 +247,11 @@ npm run test:e2e needs the Playwright browser once: `npx playwright install chro
 | Integration | `*.int.test.ts` | SQLite repository and migrations on a real file. The LangChain adapter over the real `ChatOllama` client against a local HTTP stub: retry after a 500, retries bounded. The Ollama readiness check. |
 | Service e2e | `apps/triage/test/e2e` | The real Nest app on port 0 with a fresh SQLite and the model mocked at its port. Covers validation (400), escalation when the model is down, runs listing and lookup, 404s, and start-up refusal. |
 | Web e2e | `apps/web/e2e` | Playwright in a real browser, with the API mocked at the network. A support agent picks a sample, triages it, reads the decision and expands the trace. |
+| Compose config | `tests/system-e2e/src` | `docker compose config` of `compose.yaml` and `compose.host-llm.yaml`: start order, model choice, the shared models volume, the variant without Ollama. |
+| System e2e | `tests/system-e2e/e2e` | The real Compose stack with the real model: the page and the API answer, the model was pulled, a sample ticket is triaged from the web UI, and the run survives a recreated stack. |
 
-The model is never called in automated tests: they are deterministic and free. The live behaviour
-is checked with the sample runner below.
+Apart from the system e2e, the model is never called in automated tests: they are deterministic and
+free. The live behaviour is also checked with the sample runner below.
 
 Every test is named after a scenario in [`openspec/specs/*/spec.md`](openspec/specs) (WHEN/THEN), so a
 requirement can be traced to its test.

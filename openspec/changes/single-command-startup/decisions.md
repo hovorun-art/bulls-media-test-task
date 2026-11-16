@@ -19,3 +19,5 @@
 - 2026-11-16 The web image copies samples/ into the build - why: the web app imports samples/tickets.json, found when the first image build failed; by: agent (technical)
 - 2026-11-16 In compose.yaml and compose.host-llm.yaml the service's OLLAMA_BASE_URL, HOST, PORT and DATABASE_PATH are fixed, not taken from .env - why: .env copied from .env.example holds 127.0.0.1, which inside a container points at the container itself; instead of: interpolating OLLAMA_BASE_URL from .env; by: agent (technical)
 - 2026-11-16 Ollama image pinned to ollama/ollama:0.12.6 for now - why: pulling 0.40.16 (the host's version) failed with no space left on the Docker disk; to revisit once the user has given Docker more disk and memory; by: agent (technical)
+- 2026-11-16 Ollama image pinned to ollama/ollama:0.40.16, the host's version - why: the user cleared Docker and raised its memory, so the pull that failed for lack of space now fits; replaces the 0.12.6 pin; by: agent (technical)
+- 2026-11-16 System e2e files are named *.e2e.ts and picked by Playwright's testMatch - why: keeps them out of the Vitest projects, which run *.test.ts; by: agent (technical)

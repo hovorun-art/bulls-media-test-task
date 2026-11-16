@@ -5,7 +5,7 @@ name: triage
 
 services:
   ollama:
-    image: ollama/ollama:0.12.6
+    image: ollama/ollama:0.40.16
     volumes:
       - models:/root/.ollama
     healthcheck:
@@ -15,7 +15,7 @@ services:
       retries: 30
 
   ollama-pull:
-    image: ollama/ollama:0.12.6
+    image: ollama/ollama:0.40.16
     environment:
       OLLAMA_HOST: http://ollama:11434
     command: ["pull", "${OLLAMA_MODEL:-qwen3:8b}"]

@@ -19,10 +19,10 @@ Owns: compose.yaml, compose.host-llm.yaml, .dockerignore, .env.example, apps/tri
 
 Owns: tests/system-e2e/{playwright.config.ts,e2e/**}, README.md · Depends on: 1 · Done when: npm run test:e2e -- --filter=@triage/system-e2e
 
-- [ ] 2.1 `tests/system-e2e/playwright.config.ts` with global setup and teardown: `docker compose -p triage-system-e2e up --build --wait` on free `WEB_PORT`/`TRIAGE_PORT`, then `down` and removal of that project's runs volume only (the shared models volume stays); per-test timeout 15 minutes for the ticket test
-- [ ] 2.2 Test "Web UI and service answer after compose up" (tests/system-e2e/e2e/startup.e2e.ts)
-- [ ] 2.3 Test "Web UI reaches the service through its own origin" (startup.e2e.ts)
-- [ ] 2.4 Test "Model is pulled on start" (startup.e2e.ts, the `ollama-pull` container exited with code 0)
-- [ ] 2.5 Test "A ticket is triaged from the web UI with the real model" (tests/system-e2e/e2e/triage.e2e.ts, a sample from samples/tickets.json)
-- [ ] 2.6 Test "Run is still listed after the stack is recreated" (triage.e2e.ts, `down` without volumes, `up --wait`, GET /api/runs)
-- [ ] 2.7 README: the setup section leads with `docker compose up` (URLs, first download size, CPU speed in Docker), the `compose.host-llm.yaml` variant for a native Ollama or Anthropic, `npm run dev` kept as the development path; the system e2e in the testing section
+- [x] 2.1 `tests/system-e2e/playwright.config.ts` with global setup and teardown: `docker compose -p triage-system-e2e up --build --wait` on free `WEB_PORT`/`TRIAGE_PORT`, then `down` and removal of that project's runs volume only (the shared models volume stays); per-test timeout 15 minutes for the ticket test
+- [x] 2.2 Test "Web UI and service answer after compose up" (tests/system-e2e/e2e/startup.e2e.ts)
+- [x] 2.3 Test "Web UI reaches the service through its own origin" (startup.e2e.ts)
+- [x] 2.4 Test "Model is pulled on start" (startup.e2e.ts, the `ollama-pull` container exited with code 0)
+- [x] 2.5 Test "A ticket is triaged from the web UI with the real model" (tests/system-e2e/e2e/triage.e2e.ts, a sample from samples/tickets.json)
+- [x] 2.6 Test "Run is still listed after the stack is recreated" (triage.e2e.ts, `down` without volumes, `up --wait`, GET /api/runs)
+- [x] 2.7 README: the setup section leads with `docker compose up` (URLs, first download size, CPU speed in Docker), the `compose.host-llm.yaml` variant for a native Ollama or Anthropic, `npm run dev` kept as the development path; the system e2e in the testing section

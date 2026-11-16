@@ -248,9 +248,26 @@ npm run test:e2e needs the Playwright browser once: `npx playwright install chro
 The model is never called in automated tests: they are deterministic and free. The live behaviour is also checked with the sample runner below.
 
 Every test is named after a scenario in [`openspec/specs/*/spec.md`](openspec/specs) (WHEN/THEN), so a
-requirement can be traced to its test.
+requirement can be traced to its test. The exceptions are five `local-startup` scenarios that need the
+live Compose stack and the real model; they are checked by hand (see "Docker stack" below).
 
 ### Manual scenarios
+
+#### Docker stack
+
+The `local-startup` scenarios on the live stack, after `docker compose up --wait`:
+
+1. **Web UI and service answer after compose up**: http://localhost:8080 shows "Support triage agent",
+   and `curl -s localhost:3000/api/health` answers `{"status":"ok"}`.
+2. **Web UI reaches the service through its own origin**: `curl -s localhost:8080/api/health`
+   answers `{"status":"ok"}`.
+3. **Model is pulled on start**: `docker compose ps -a ollama-pull` shows the service exited with 0.
+4. **A ticket is triaged from the web UI with the real model**: pick "Refund inside the window",
+   press "Triage ticket", approve the refund; the summary appears with no "Model failure" flag.
+5. **Run is still listed after the stack is recreated**: `docker compose down`, then
+   `docker compose up --wait`; `curl -s localhost:3000/api/runs` still lists that run.
+
+#### Against the real model
 
 With the service running (`npm run dev`), run all samples against the real model and compare them
 with the expected outcomes:

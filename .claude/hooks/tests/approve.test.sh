@@ -35,8 +35,11 @@ run_case() {
   rm -rf "$dir"
 }
 
-answer() { # answer <question> <picked label>
-  python3 -c 'import json,sys; q,a=sys.argv[1:3]; print(json.dumps({"tool_input":{"questions":[{"question":q}]},"tool_response":{"answers":{q:a}}}))' "$1" "$2"
+answer() { # answer <question> <picked label> [cwd]
+  python3 -c 'import json,sys
+q,a=sys.argv[1:3]; d={"tool_input":{"questions":[{"question":q}]},"tool_response":{"answers":{q:a}}}
+if len(sys.argv)>3: d["cwd"]=sys.argv[3]
+print(json.dumps(d))' "$@"
 }
 
 run_case "typed command approves a ready brief" --prompt '{"prompt":"/specs-go demo"}' demo approved
@@ -88,5 +91,35 @@ note_case() {
 }
 note_case "a translated label on a ready brief tells the agent to ask again" 'Затвердити бриф demo?' 'Затвердити бриф' note # allow-non-english
 note_case "a question about a brief with items to confirm stays silent" 'Which limit for draft?' '10' silent
+
+# root_case <name> <where the hook runs: worktree|worktree-subfolder|outside-git> <expected: worktree|project>
+# The change "demo" is in two places: a git worktree and the session's project dir (the main checkout).
+# The approval must land in exactly one of them: the worktree the hook's cwd belongs to, or the project
+# dir when the cwd is not in a git repository.
+root_case() {
+  local name="$1" where="$2" expected="$3" project worktree cwd approved_in=()
+  project=$(make_project)
+  worktree=$(make_project)
+  git -C "$worktree" init -q
+  case "$where" in
+    worktree) cwd="$worktree" ;;
+    worktree-subfolder) cwd="$worktree/openspec/changes/demo" ;;
+    outside-git) cwd=$(mktemp -d) ;;
+  esac
+  answer 'Approve the brief of demo?' 'Approve the brief' "$cwd" | CLAUDE_PROJECT_DIR="$project" bash "$HOOK" --answer >/dev/null
+  [ -f "$worktree/openspec/changes/demo/.decisions-approved" ] && approved_in+=(worktree)
+  [ -f "$project/openspec/changes/demo/.decisions-approved" ] && approved_in+=(project)
+  if [ "${approved_in[*]}" = "$expected" ]; then
+    echo "ok   $name"
+  else
+    echo "FAIL $name: expected '$expected', got '${approved_in[*]}'"
+    failures=$((failures + 1))
+  fi
+  rm -rf "$project" "$worktree"
+  [ "$where" = outside-git ] && rm -rf "$cwd"
+}
+root_case "approves the change in the worktree the session runs in, not the main checkout" worktree worktree
+root_case "approves the change when the cwd is a folder inside the worktree" worktree-subfolder worktree
+root_case "falls back to the project dir when the cwd is not in a git repository" outside-git project
 
 [ "$failures" -eq 0 ] && echo "all passed" || { echo "$failures failed"; exit 1; }

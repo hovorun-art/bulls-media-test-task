@@ -126,20 +126,31 @@ else
 fi
 rm -rf "$git_dir"
 
-# The session's project dir is the main checkout; the change lives in the git worktree that is the cwd.
-main_dir=$(mktemp -d)
-worktree_dir=$(mktemp -d)
-mkdir -p "$worktree_dir/openspec/changes/demo"
-git -C "$worktree_dir" init -q
-python3 -c 'import json,sys; print(json.dumps({"agent_type":"change-verifier","stop_hook_active":True,"cwd":sys.argv[1],"last_assistant_message":sys.argv[2]}))' \
-  "$worktree_dir" "$REPORT_TEXT" | CLAUDE_PROJECT_DIR="$main_dir" bash "$HOOK" stop >/dev/null
-actual_verdict=$(head -1 "$worktree_dir/openspec/changes/demo/.verdict" 2>/dev/null)
-if [ "$actual_verdict" = PASS ]; then
-  echo "ok   stop: records the verdict in the worktree the session runs in"
-else
-  echo "FAIL stop: records the verdict in the worktree the session runs in: got '$actual_verdict'"
-  failures=$((failures + 1))
-fi
-rm -rf "$main_dir" "$worktree_dir"
+# root_case <name> <where the hook runs: worktree|outside-git> <expected: worktree|project>
+# The change "demo" is in two places: a git worktree and the session's project dir (the main checkout).
+# The verdict must land in exactly one of them: the worktree the hook's cwd belongs to, or the project
+# dir when the cwd is not in a git repository.
+root_case() {
+  local name="$1" where="$2" expected="$3" project worktree cwd recorded_in=()
+  project=$(mktemp -d)
+  worktree=$(mktemp -d)
+  mkdir -p "$project/openspec/changes/demo" "$worktree/openspec/changes/demo"
+  git -C "$worktree" init -q
+  if [ "$where" = worktree ]; then cwd="$worktree"; else cwd=$(mktemp -d); fi
+  python3 -c 'import json,sys; print(json.dumps({"agent_type":"change-verifier","stop_hook_active":True,"cwd":sys.argv[1],"last_assistant_message":sys.argv[2]}))' \
+    "$cwd" "$REPORT_TEXT" | CLAUDE_PROJECT_DIR="$project" bash "$HOOK" stop >/dev/null
+  [ -f "$worktree/openspec/changes/demo/.verdict" ] && recorded_in+=(worktree)
+  [ -f "$project/openspec/changes/demo/.verdict" ] && recorded_in+=(project)
+  if [ "${recorded_in[*]}" = "$expected" ]; then
+    echo "ok   $name"
+  else
+    echo "FAIL $name: expected '$expected', got '${recorded_in[*]}'"
+    failures=$((failures + 1))
+  fi
+  rm -rf "$project" "$worktree"
+  [ "$where" = outside-git ] && rm -rf "$cwd"
+}
+root_case "stop: records the verdict in the worktree the session runs in, not the main checkout" worktree worktree
+root_case "stop: falls back to the project dir when the cwd is not in a git repository" outside-git project
 
 [ "$failures" -eq 0 ] && echo "all passed" || { echo "$failures failed"; exit 1; }

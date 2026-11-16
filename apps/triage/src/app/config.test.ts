@@ -21,7 +21,7 @@ describe('TriageConfigSchema', () => {
 
   it('applies the defaults', () => {
     expect(parse({})).toMatchObject({
-      GEMINI_MODEL: 'gemini-3.8-flash',
+      GEMINI_MODEL: 'gemini-flash-lite-latest',
       MODEL_MAX_ATTEMPTS: 4,
       MODEL_REPAIR_ATTEMPTS: 2,
       MAX_TOOL_CALLS: 8,

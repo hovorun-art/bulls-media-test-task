@@ -87,7 +87,7 @@ flowchart LR
     AG --> T3["check_refund_eligibility<br/>(rules in code)"]
     AG --> M["SupportModel port"]
   end
-  M --> G["Google Gemini<br/>(gemini-3.8-flash, Gemini API)"]
+  M --> G["Google Gemini<br/>(gemini-flash-lite-latest, Gemini API)"]
 ```
 
 ### The agent graph
@@ -187,9 +187,13 @@ No `.env` file is needed for this. To keep the key out of the command, put it in
 
 This starts the triage service on :3000 and the web UI on **http://localhost:8080**, the web UI
 only after the service is healthy. There is no model to download. Runs are kept in a volume across
-restarts. Without `GOOGLE_API_KEY`, Compose refuses to start and names the key. Another model:
-`GEMINI_MODEL=<model>` next to the key, or in `.env`. The free tier has rate limits: a `429` is
-retried with backoff and, if it persists, the ticket is escalated.
+restarts. Without `GOOGLE_API_KEY`, Compose refuses to start and names the key.
+
+The model is `gemini-flash-lite-latest` by default: an alias Google may point at a newer model, so
+answers can change over time. To pin a version or use another model, set `GEMINI_MODEL` next to the
+key (`GEMINI_MODEL=gemini-3.5-flash-lite GOOGLE_API_KEY=<your key> docker compose up`) or in `.env`.
+The free tier has rate limits and busy spells: a `429` or `503` is retried with backoff and, if it
+persists, the ticket is escalated.
 
 ### Development (Node.js)
 

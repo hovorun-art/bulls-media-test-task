@@ -6,3 +6,4 @@
 - 2026-11-16 Retries on 429/503 and a fallback model stay out of scope - why: the user asked only for the default model; by: agent (technical), in the brief for approval
 - 2026-11-16 Fixtures that only name gemini-3.8-flash stay; only the tests of the default change - why: any model name works there, smaller diff; by: user confirmed assumption
 - 2026-11-16 README section 7 (recorded live run) stays; only the architecture label and setup text change - why: it documents a past run, a new live run will replace it; by: user confirmed assumption
+- 2026-11-16 Deviation: apps/triage/src/app/config.test.ts ('applies the defaults') also pins the default and changes too, though group 1 did not list it under Owns - why: it is a test of the default, which the brief says changes; triggered by: npm run check:full; by: agent (technical)

@@ -90,8 +90,23 @@ describe('LangChainSupportModel over ChatGoogleGenerativeAI', () => {
     ]);
   });
 
+  it('asks Gemini for a decision schema with one type per field', async () => {
+    const decision = { action: 'propose_refund', reasons: ['Delivered last week.'], citedArticles: [], refundOrderId: 'A-1002' };
+    const stub = await aGeminiStub([{ status: 200, text: JSON.stringify(decision) }]);
+    server = stub.server;
+    const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
+
+    await model.decide({
+      ticket: { email: 'anna@example.com', subject: 'Where is my order?', body: 'Lamp is late' },
+      classification: CLASSIFICATION,
+      observations: [],
+    });
+
+    expect(stub.bodies[0]?.generationConfig?.responseSchema?.properties.refundOrderId).toEqual({ type: 'string' });
+  });
+
   it('returns a decision with no refund order through the real client', async () => {
-    const decision = { action: 'reply', reasons: ['The order is on its way.'], citedArticles: ['shipping'], refundOrderId: null };
+    const decision = { action: 'reply', reasons: ['The order is on its way.'], citedArticles: ['shipping'] };
     const stub = await aGeminiStub([{ status: 200, text: JSON.stringify(decision) }]);
     server = stub.server;
     const model = aModelOver(stub.baseUrl, { maxAttempts: 1, repairAttempts: 0 });
@@ -102,7 +117,7 @@ describe('LangChainSupportModel over ChatGoogleGenerativeAI', () => {
       observations: [],
     });
 
-    expect(answer).toEqual(decision);
+    expect(answer).toEqual({ ...decision, refundOrderId: null });
   });
 
   it('returns a reply draft through the real client', async () => {

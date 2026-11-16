@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModelUnavailableError } from '../../domain/triage/model-unavailable.error';
+import type { Classification } from '../../domain/triage/support-model';
 import { LangChainSupportModel } from './langchain-support-model';
 
 /** The adapter over the real ChatGoogleGenerativeAI client, aimed at the stub. */
@@ -48,7 +49,7 @@ async function aGeminiStub(
 }
 
 const GENERATE = 'POST /v1beta/models/gemini-3.8-flash:generateContent';
-const CLASSIFICATION = { category: 'order_status', priority: 'normal', issueSummary: 'Where is A-1001.' };
+const CLASSIFICATION: Classification = { category: 'order_status', priority: 'normal', issueSummary: 'Where is A-1001.' };
 
 describe('LangChainSupportModel over ChatGoogleGenerativeAI', () => {
   let server: Server | undefined;

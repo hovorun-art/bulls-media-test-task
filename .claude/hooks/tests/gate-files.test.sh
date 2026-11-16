@@ -13,7 +13,7 @@ failures=0
 make_project() {
   local dir
   dir=$(mktemp -d)
-  mkdir -p "$dir/openspec/changes/demo" "$dir/openspec/changes/draft" "$dir/openspec/changes/nohash" "$dir/src" "$dir/.claude"
+  mkdir -p "$dir/openspec/changes/demo" "$dir/openspec/changes/draft" "$dir/openspec/changes/nohash" "$dir/src" "$dir/apps/x" "$dir/.claude"
   echo "Goal: x" >"$dir/openspec/changes/demo/brief.md"
   echo "- [ ] open" >"$dir/openspec/changes/draft/brief.md"
   echo "Goal: y" >"$dir/openspec/changes/nohash/brief.md"
@@ -23,6 +23,7 @@ make_project() {
     >"$dir/openspec/changes/demo/.decisions-approved"
   printf 'openspec/changes/**/.verdict\n' >"$dir/.gitignore"
   echo "x" >"$dir/src/a.ts"
+  echo "x" >"$dir/apps/x/a.ts"
   git -C "$dir" init -q -b demo
   git -C "$dir" add -A
   git -C "$dir" -c user.email=t@t -c user.name=t commit -q -m init
@@ -34,9 +35,11 @@ verdict() {
   printf '%s\ncommit: %s\n' "$2" "${3:-$(git -C "$1" rev-parse HEAD)}" >"$1/openspec/changes/demo/.verdict"
 }
 
-# run_case <name> <tool> <file path or command> <expected: deny|ask|none> [setup function] [cwd inside the project]
+# run_case <name> <tool> <file path or command> <expected: deny|ask|none> [setup function]
+# The hook runs in the project's root, or in CWD_SUB inside it; the session's project dir is the
+# project, or PROJECT_DIR when set.
 run_case() {
-  local name="$1" tool="$2" arg="$3" expected="$4" setup="${5:-}" sub="${6:-.}"
+  local name="$1" tool="$2" arg="$3" expected="$4" setup="${5:-}" sub="${CWD_SUB:-.}"
   local dir actual
   dir=$(make_project)
   [ -n "$setup" ] && "$setup" "$dir"
@@ -46,7 +49,7 @@ import json, sys
 tool, arg, cwd = sys.argv[1:4]
 ti = {"command": arg} if tool == "Bash" else {"file_path": arg}
 print(json.dumps({"tool_name": tool, "tool_input": ti, "cwd": cwd}))' "$tool" "$arg" "$dir/$sub" \
-    | CLAUDE_PROJECT_DIR="$dir" bash "$HOOK" \
+    | CLAUDE_PROJECT_DIR="${PROJECT_DIR:-$dir}" bash "$HOOK" \
     | python3 -c 'import json,sys; s=sys.stdin.read(); print(json.loads(s)["hookSpecificOutput"]["permissionDecision"] if s.strip() else "none")')
   if [ "$actual" = "$expected" ]; then
     echo "ok   $name"
@@ -56,6 +59,10 @@ print(json.dumps({"tool_name": tool, "tool_input": ti, "cwd": cwd}))' "$tool" "$
   fi
   rm -rf "$dir"
 }
+
+# in_subfolder <cwd inside the project> <run_case arguments>: the session's project dir is another
+# checkout, as in a worktree session.
+in_subfolder() { CWD_SUB="$1" PROJECT_DIR=/ run_case "${@:2}"; }
 
 pass_here() { verdict "$1" PASS; }
 partial_here() { verdict "$1" PARTIAL; }
@@ -89,9 +96,16 @@ run_case "a relative write after cd into the changes folder is blocked" Bash 'cd
 run_case "a write after cd into unapproved specs is blocked" Bash 'cd openspec/changes/draft/specs && echo x > a.md' deny
 run_case "a relative write after cd into an approved change is allowed" Bash 'cd openspec/changes/demo && echo x > tasks.md' none
 run_case "a write elsewhere after cd is left alone" Bash 'cd src && echo x > specs/a.ts' none
-run_case "from a subfolder, a write after cd to the root into an approved change is allowed" Bash 'cd __DIR__ && echo x > openspec/changes/demo/tasks.md' none '' src
-run_case "from a subfolder, a write after cd to the root into an unapproved change is blocked" Bash 'cd __DIR__ && echo x > openspec/changes/draft/tasks.md' deny '' src
-run_case "from a subfolder, an edit of an approved change's tasks by absolute path is allowed" Edit '__DIR__/openspec/changes/demo/tasks.md' none '' src
+in_subfolder src "from a subfolder, a write after cd to the root into an approved change is allowed" Bash 'cd __DIR__ && echo x > openspec/changes/demo/tasks.md' none
+in_subfolder src "from a subfolder, a write after cd .. into an approved change is allowed" Bash 'cd .. && echo x > openspec/changes/demo/tasks.md' none
+in_subfolder apps/x "from a deeper subfolder, a write after cd to the root into an approved change is allowed" Bash 'cd __DIR__ && echo x > openspec/changes/demo/tasks.md' none
+in_subfolder src "from a subfolder, a write into an unapproved change is blocked" Bash 'cd __DIR__ && echo x > openspec/changes/draft/tasks.md' deny
+in_subfolder src "from a subfolder, a write after the approved brief changed is blocked" Bash 'cd __DIR__ && echo x > openspec/changes/demo/tasks.md' deny brief_edited
+in_subfolder src "from a subfolder, a write into an unknown change is blocked" Bash 'cd __DIR__ && echo x > openspec/changes/nope/tasks.md' deny
+in_subfolder src "from a subfolder, a relative edit of an approved change's tasks is allowed" Edit 'openspec/changes/demo/tasks.md' none
+in_subfolder src "from a subfolder, a relative edit of an unapproved change's tasks is blocked" Edit 'openspec/changes/draft/tasks.md' deny
+in_subfolder src "from a subfolder, archive without a verdict is blocked" Bash 'openspec archive demo -y' deny
+in_subfolder src "from a subfolder, archive after PASS on the current commit is allowed" Bash 'openspec archive demo -y' none pass_here
 run_case "a project agent named change-verifier is never written" Write '__DIR__/.claude/agents/change-verifier.md' deny
 run_case "a project agent named change-verifier is never written through Bash" Bash 'cp x.md .claude/agents/change-verifier.md' deny
 run_case "another project agent may be written" Write '__DIR__/.claude/agents/helper.md' none
